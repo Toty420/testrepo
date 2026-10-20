@@ -1,0 +1,219 @@
+<title>Свара</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- STYLES -->
+<!-- BODY -->
+<div id="app" class="app" lang="bg">
+
+  <!-- ============================== HOME ============================== -->
+  <section id="screen-home" class="screen home" data-screen="home" aria-label="Начало">
+    <div class="home-scroll" id="home-scroll">
+      <header class="home-top">
+        <div class="xp-badge" id="home-xp" title="Опит">
+          <svg class="gem" viewBox="0 0 16 18" aria-hidden="true"><path d="M8 0.8 15 4.9v8.2L8 17.2 1 13.1V4.9z"/><path class="gem-hi" d="M8 0.8 15 4.9 8 9 1 4.9z"/></svg>
+          <span id="home-xp-value" class="num">0</span>
+          <span class="sr-only">XP</span>
+        </div>
+        <div class="level-ring" id="home-level" title="Ниво">
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle class="ring-track" cx="18" cy="18" r="16"></circle>
+            <circle class="ring-arc" id="level-arc" cx="18" cy="18" r="16"></circle>
+          </svg>
+          <span id="home-level-value" class="num">0</span>
+        </div>
+      </header>
+
+      <div class="bankroll num" id="home-bankroll" aria-label="Банка">5 000</div>
+      <button type="button" id="btn-free-chips" data-testid="btn-free-chips" class="btn-free" hidden>Вземи 1 000 безплатни чипа</button>
+
+      <div class="modes" id="modes">
+        <button type="button" class="mode mode-ai" id="mode-ai" data-testid="mode-ai">
+          <span class="mode-icon" aria-hidden="true">🤖</span>
+          <span class="mode-title">AI Арена</span>
+          <span class="mode-sub">Играй срещу компютъра</span>
+        </button>
+        <button type="button" class="mode mode-online locked" id="mode-online" data-testid="mode-online" aria-describedby="mode-online-lock">
+          <span class="mode-icon" aria-hidden="true">🌍</span>
+          <span class="mode-lock" id="mode-online-lock" role="img" aria-label="Заключено">🔒</span>
+          <span class="mode-title">Онлайн маси</span>
+          <span class="mode-sub">Срещу истински хора · скоро</span>
+        </button>
+      </div>
+
+      <section class="board" aria-labelledby="lb-title">
+        <div class="lb-head">
+          <h2 id="lb-title">Седмична класация</h2>
+          <button type="button" class="help" id="btn-lb-help" data-testid="btn-lb-help" aria-label="Как се печели опит">?</button>
+        </div>
+        <ol class="lb" id="leaderboard"></ol>
+      </section>
+    </div>
+
+    <nav class="nav" aria-label="Навигация">
+      <button type="button" class="nav-btn" id="nav-shop" data-testid="nav-shop" aria-label="Магазин">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+        <i class="nav-dot"></i>
+      </button>
+      <button type="button" class="nav-btn active" id="nav-home" data-testid="nav-home" aria-label="Начало" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 10.5 12 4l8 6.5V20H4z"/><path class="cut" d="M9.5 15.5h5"/></svg>
+      </button>
+      <button type="button" class="nav-btn" id="nav-profile" data-testid="nav-profile" aria-label="Профил">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c.6-3.6 3.4-5.6 7-5.6s6.4 2 7 5.6"/></svg>
+      </button>
+    </nav>
+  </section>
+
+  <!-- ============================== STAKES ============================== -->
+  <section id="screen-stakes" class="screen stakes" data-screen="stakes" aria-label="Избор на залог" hidden>
+    <div class="stakes-panel">
+      <div class="bar">
+        <button type="button" class="icon-btn" id="btn-stakes-back" data-testid="btn-stakes-back" aria-label="Назад">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H3.5M9 4 3 10l6 6"/></svg>
+        </button>
+        <span class="bar-title num" id="stakes-bankroll">5 000</span>
+        <span class="bar-spacer" aria-hidden="true"></span>
+      </div>
+      <div class="stakes-info">
+        <div class="st-label tint">Залог</div>
+        <div class="st-value tint num" id="stakes-value">5 / 10</div>
+        <div class="st-label" id="buyin-label">Вход</div>
+        <div class="st-value num" id="buyin-value">200 / 1K</div>
+        <div class="st-note" id="stakes-note">Анте 5 · Мин. залог 10</div>
+      </div>
+      <div class="ticks" id="stakes-slider" data-testid="stakes-slider" role="slider" tabindex="0"
+           aria-label="Залог" aria-valuemin="0" aria-valuemax="7" aria-valuenow="1" aria-valuetext="5 / 10"></div>
+    </div>
+    <div class="stakes-bottom">
+      <p class="stakes-seat" id="stakes-seat">Сядаш с 1 000 чипа</p>
+      <button type="button" class="btn-primary" id="btn-start" data-testid="btn-start">ЗАПОЧНИ ИГРА</button>
+    </div>
+  </section>
+
+  <!-- ============================== TABLE ============================== -->
+  <section id="screen-table" class="screen table" data-screen="table" aria-label="Маса" hidden>
+    <header class="t-top">
+      <button type="button" class="icon-btn" id="btn-leave" data-testid="btn-leave" aria-label="Напусни масата">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H3.5M9 4 3 10l6 6"/></svg>
+      </button>
+      <div class="t-stakes num" id="table-stakes" title="Анте / минимален залог"></div>
+      <div class="t-xp" id="table-xp" aria-live="polite">
+        <span id="table-xp-value" class="num">+0 XP</span>
+        <svg viewBox="0 0 12 14" aria-hidden="true"><path d="M2 6.5 6 2.5l4 4M2 11.5l4-4 4 4"/></svg>
+      </div>
+    </header>
+
+    <div class="opps" id="opps"></div>
+
+    <div class="middle" id="middle">
+      <div class="deck" id="deck" aria-hidden="true">
+        <span class="deck-layer l2"></span><span class="deck-layer l1"></span><span class="deck-top back" id="deck-top"></span>
+      </div>
+      <div class="pill" id="hand-pill" hidden></div>
+      <div class="pot" id="pot">
+        <div class="pot-label" id="pot-label">Банка</div>
+        <div class="pot-amount num" id="pot-amount">0</div>
+      </div>
+      <div class="svara-banner" id="svara-banner" role="status" hidden>
+        <div class="svara-word">СВАРА!</div>
+        <div class="svara-sub num" id="svara-sub"></div>
+      </div>
+    </div>
+
+    <div class="hero-bet"><span class="bubble num" id="hero-bubble" hidden></span></div>
+
+    <div class="actions" id="actions" data-mode="bet">
+      <button type="button" class="act" id="btn-fold" data-testid="btn-fold" disabled><span class="act-in"><span class="lbl">Пас</span></span></button>
+      <button type="button" class="act" id="btn-call" data-testid="btn-call" disabled><span class="act-in"><span class="lbl">Чек</span><span class="amt num"></span></span></button>
+      <button type="button" class="act" id="btn-raise" data-testid="btn-raise" disabled><span class="act-in"><span class="lbl">Залагам</span><span class="amt num"></span></span></button>
+      <button type="button" class="act act-more" id="btn-raise-more" data-testid="btn-raise-more" aria-label="Избери сума" disabled>
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 11V1.5M2 5.5l4-4 4 4"/></svg>
+      </button>
+      <button type="button" class="act" id="btn-allin" data-testid="btn-allin" hidden disabled><span class="act-in"><span class="lbl">Ва банк</span><span class="amt num"></span></span></button>
+      <button type="button" class="act" id="btn-next" data-testid="btn-next" hidden disabled><span class="act-in"><span class="lbl">Следваща ръка</span></span></button>
+    </div>
+
+    <div class="hand-row">
+      <div class="hand" id="hand" aria-label="Твоите карти"></div>
+      <button type="button" class="info" id="info-box" data-testid="info-box" title="Смени изгледа: стек или шансове">
+        <span class="info-clip">
+          <span class="info-track">
+            <span class="info-page page-a">
+              <span class="info-label" id="info-hand"></span>
+              <span class="info-avatar"><span class="emoji" id="info-avatar">🧑</span><span class="dealer" id="hero-dealer" hidden>D</span></span>
+              <span class="info-stack num" id="info-stack">0</span>
+            </span>
+            <span class="info-page page-b">
+              <span class="info-label">Печалба</span>
+              <span class="info-pct gold num" id="eq-win">–</span>
+              <span class="info-label">Свара</span>
+              <span class="info-pct num" id="eq-tie">–</span>
+            </span>
+          </span>
+        </span>
+        <span class="dots" aria-hidden="true"><i></i><i></i></span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============================== SHEETS ============================== -->
+  <div class="sheet-layer" id="sheet-layer" hidden>
+    <div class="backdrop" id="backdrop"></div>
+
+    <div class="sheet" id="sheet-leave" data-testid="sheet-leave" role="dialog" aria-modal="true" aria-labelledby="leave-title" hidden>
+      <span class="grabber" aria-hidden="true"></span>
+      <div class="sheet-icon" aria-hidden="true">💸</div>
+      <h2 class="sheet-title" id="leave-title">Сигурен ли си?</h2>
+      <p class="sheet-body">Чиповете ти на масата ще се върнат в банката.</p>
+      <div class="sheet-buttons">
+        <button type="button" class="btn-primary" id="btn-leave-confirm" data-testid="btn-leave-confirm">Напусни масата</button>
+        <button type="button" class="btn-secondary" id="btn-leave-stay" data-testid="btn-leave-stay">Остани</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="sheet-raise" data-testid="sheet-raise" role="dialog" aria-modal="true" aria-labelledby="raise-label" hidden>
+      <span class="grabber" aria-hidden="true"></span>
+      <div class="raise-label" id="raise-label">Вдигам до</div>
+      <div class="raise-amount num" id="raise-amount">0</div>
+      <div class="raise-range">
+        <label class="sr-only" for="raise-slider">Сума</label>
+        <input type="range" id="raise-slider" data-testid="raise-slider" min="0" max="1" step="1" value="0">
+        <div class="raise-ends num"><span id="raise-min">0</span><span id="raise-max">0</span></div>
+      </div>
+      <div class="presets" role="group" aria-label="Бърз избор">
+        <button type="button" class="preset" id="preset-min" data-testid="preset-min" data-preset="min">Мин</button>
+        <button type="button" class="preset" id="preset-half" data-testid="preset-half" data-preset="half">½ банка</button>
+        <button type="button" class="preset" id="preset-pot" data-testid="preset-pot" data-preset="pot">Банка</button>
+        <button type="button" class="preset" id="preset-allin" data-testid="preset-allin" data-preset="allin">Ва банк</button>
+      </div>
+      <div class="sheet-buttons">
+        <button type="button" class="btn-primary" id="btn-raise-confirm" data-testid="btn-raise-confirm">Вдигам до 0</button>
+        <button type="button" class="btn-secondary" id="btn-raise-cancel" data-testid="btn-raise-cancel">Отказ</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="sheet-svara" data-testid="sheet-svara" role="dialog" aria-modal="true" aria-labelledby="svara-title" hidden>
+      <span class="grabber" aria-hidden="true"></span>
+      <div class="sheet-icon" aria-hidden="true">⚔️</div>
+      <h2 class="sheet-title num" id="svara-title">Свара! Влез за 0?</h2>
+      <p class="sheet-body num" id="svara-body"></p>
+      <div class="sheet-buttons">
+        <button type="button" class="btn-primary" id="btn-svara-join" data-testid="btn-svara-join">Влизам</button>
+        <button type="button" class="btn-secondary" id="btn-svara-decline" data-testid="btn-svara-decline">Отказвам</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="sheet-busted" data-testid="sheet-busted" role="dialog" aria-modal="true" aria-labelledby="busted-title" hidden>
+      <span class="grabber" aria-hidden="true"></span>
+      <div class="sheet-icon" aria-hidden="true">🫠</div>
+      <h2 class="sheet-title" id="busted-title">Свършиха ти чиповете</h2>
+      <p class="sheet-body num" id="busted-body"></p>
+      <div class="sheet-buttons">
+        <button type="button" class="btn-primary" id="btn-rebuy" data-testid="btn-rebuy">Купи отново</button>
+        <button type="button" class="btn-secondary" id="btn-busted-home" data-testid="btn-busted-home">Към началото</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fx" id="fx" aria-hidden="true"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+<!-- SCRIPTS -->

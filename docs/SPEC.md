@@ -187,6 +187,8 @@ The engine throws a clear `Error` on an illegal action, an action out of turn, o
 SvaraAI.equity(myCards, numOpponents, { iterations = 1200, rng, jokerWild = true } = {})
   -> { win, tie }        // Monte Carlo: random opponent hands from the remaining 29 cards;
                          // win = strictly best, tie = tied for best (→ svara)
+                         // optional { bettors, minPoints, bluffMix = 0.2 }: the first `bettors`
+                         // opponents hold ≥ minPoints, except for a bluffMix share of random hands
 SvaraAI.decide(state, botId, personality, rng) -> { type, amount? }   // always a legal action
 SvaraAI.decideSvaraJoin(state, botId, personality, rng) -> boolean
 SvaraAI.PERSONALITIES  // e.g. { rock, tag, lag, fish, maniac } : { tightness, aggression, bluff }
@@ -194,7 +196,9 @@ SvaraAI.PERSONALITIES  // e.g. { rock, tag, lag, fish, maniac } : { tightness, a
 - Bots use **only their own cards** and public information (pot, bets, number of active players),
   never the human's cards or the deck.
 - Decisions: compare equity against the number of active opponents to the pot odds, adjusted by
-  personality and some randomness.
+  personality and some randomness. Facing a bet, the players who bet or raised are not given random
+  hands: their range gets stronger with the size of the bet relative to the pot and with the number
+  of raisers, so big bets and shoves are not called off with medium hands.
   - Raise sizes are 2.5–3× the current bet or 50–100% of the pot, rounded to `bb`.
   - Very strong hands (33/34) are sometimes slow-played. Weak hands are occasionally bluffed.
   - Bots must not be trivially exploitable: not always calling, not always folding.

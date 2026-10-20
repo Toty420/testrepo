@@ -1,0 +1,3781 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<title>Свара</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/*
+ * Свара — AI Арена. One dark look (the recorded app): pure black, quiet greys, thin outlined
+ * rounded controls, near-white cards with coral ♥♦, lemon bet numbers, gold odds.
+ * Layout: one phone column (max 480px). Home scrolls inside itself; the table is a fixed grid
+ * (top bar · opponents · 1fr middle · hero lane · actions · hand) that never scrolls.
+ */
+:root {
+  color-scheme: dark;
+  /* surfaces */
+  --bg: #000000;
+  --surface: #232327;
+  --surface-2: #34343b;
+  --surface-press: #2d2d33;
+  --line: #232327;
+  --line-2: #3a3a40;
+  --backdrop: rgba(0, 0, 0, .5);
+  --nav-bg: rgba(0, 0, 0, .78);
+  --toast-bg: #2c2c31;
+  /* text */
+  --text: #fafafa;
+  --text-stack: #e0e0e2;
+  --text-2: #939a9e;
+  --text-3: #9499a1;
+  --text-off: #6b6f75;
+  --handle: #9299a0;
+  --focus: #a9bbff;
+  /* cards */
+  --card-face: #f9f9f9;
+  --card-shade: #e6e6e6;
+  --card-ink: #232327;
+  --card-suit-dark: #3a3a3f;
+  --card-red: #f84a42;
+  --card-back-ink: #232326;
+  --deck-l1: #e6e6e6;
+  --deck-l2: #cfcfd1;
+  --shadow-card: rgba(0, 0, 0, .28);
+  --shadow-sheet: rgba(0, 0, 0, .45);
+  /* accents */
+  --bet-ink: #f8f86e;
+  --win-gold: #f3b54f;
+  --gain: #3cf0a5;
+  --loss: #fa667c;
+  --unafford: #de706a;
+  --unafford-label: #cf7470;
+  --dealer-bg: #f9f9f9;
+  --dealer-ink: #222226;
+  --marker: #f4f4f4;
+  --pill-bg: #f9f9f9;
+  --pill-ink: #232326;
+  --primary-bg: #f9f9f9;
+  --primary-ink: #232326;
+  /* home */
+  --xp-blue: #6ec9e2;
+  --gem: #58bbe8;
+  --gem-hi: #9fe0f7;
+  --ring-track: #2a2a2c;
+  --dot-off: #2e2e2e;
+  --ring-progress: #f5b45b;
+  --nav-idle: #65646d;
+  --nav-active: #fafafa;
+  --nav-badge: #fd6379;
+  --mode-title: #1d1f21;
+  --mode-sub: #4d535b;
+  --me-row: #141417;
+  --grad-ai: linear-gradient(100deg, #cedcfb 0%, #c7c5f5 50%, #b48bdd 100%);
+  --grad-online: linear-gradient(30deg, #c6d4f5 0%, #d6e4e2 50%, #cbe6c2 100%);
+  /* stakes picker (AI Арена tint) */
+  --tint: #c8d4f6;
+  --tick-ok: #fafaff;
+  --panel-grad: radial-gradient(130% 70% at 50% 0%, #393944 0%, rgba(57, 57, 68, 0) 60%),
+                linear-gradient(180deg, #31313b 0%, #2d2c35 22%, #28272e 44%, #212127 66%, #1e1e22 88%);
+
+  /* type */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
+  --font-emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
+
+  /* motion: every duration is multiplied by --speed (debug hook setSpeed) */
+  --speed: 1;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+
+  background: var(--bg);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; } /* same as the host reset; component display rules must not win */
+html { height: 100%; background: var(--bg); }
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 15px/1.3 var(--font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; touch-action: manipulation; }
+button:disabled { cursor: default; }
+h2, p, ol { margin: 0; padding: 0; }
+.num { font-variant-numeric: tabular-nums; }
+.emoji, .mode-icon, .mode-lock, .sheet-icon, .seat-avatar, .lb-medal, .lb-avatar { font-family: var(--font-emoji); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ------------------------------------------------------------------------------------------ */
+/* App shell: one centered phone column; screens overlap in one grid cell                       */
+/* ------------------------------------------------------------------------------------------ */
+.app {
+  --W: min(100vw, 480px);
+  --gut: clamp(16px, 4.55vw, 20px);
+  --padL: max(16px, var(--gut), env(safe-area-inset-left, 0px));
+  --padR: max(16px, var(--gut), env(safe-area-inset-right, 0px));
+  position: relative;
+  height: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding-left: max(16px, var(--gut), env(safe-area-inset-left, 0px));
+  padding-right: max(16px, var(--gut), env(safe-area-inset-right, 0px));
+  padding-block: 0;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--bg);
+}
+.screen { grid-area: 1 / 1; min-width: 0; min-height: 0; position: relative; background: var(--bg); }
+.icon-btn {
+  width: 44px; height: 44px; margin-left: -12px;
+  display: grid; place-items: center; border-radius: 12px; color: var(--text);
+}
+.icon-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.btn-primary, .btn-secondary {
+  width: 100%; height: 56px; border-radius: 20px;
+  font-size: 17px; font-weight: 500; letter-spacing: .01em;
+  transition: opacity calc(100ms * var(--speed)), background-color calc(150ms * var(--speed));
+}
+.btn-primary { background: var(--primary-bg); color: var(--primary-ink); }
+.btn-secondary { background: var(--surface-2); color: var(--text); }
+.btn-primary:active:not(:disabled), .btn-secondary:active:not(:disabled) { opacity: .6; }
+.btn-primary:disabled { background: var(--surface); color: var(--text-off); }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Home                                                                                        */
+/* ------------------------------------------------------------------------------------------ */
+.home { display: grid; grid-template-rows: minmax(0, 1fr); --nav-h: 72px; }
+.home-scroll {
+  overflow-y: auto; overflow-x: hidden;
+  margin-left: calc(-1 * var(--padL)); margin-right: calc(-1 * var(--padR));
+  padding-left: var(--padL); padding-right: var(--padR);
+  padding-bottom: calc(var(--nav-h) + 28px);
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+.home-scroll::-webkit-scrollbar { display: none; }
+.home-top { height: 48px; margin-top: 6px; display: flex; align-items: center; justify-content: space-between; }
+.xp-badge { display: flex; align-items: center; gap: 6px; color: var(--xp-blue); font-size: 14px; }
+.gem { width: 16px; height: 18px; fill: var(--gem); }
+.gem .gem-hi { fill: var(--gem-hi); opacity: .55; }
+.level-ring { position: relative; width: 36px; height: 36px; display: grid; place-items: center; font-size: 14px; }
+.level-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ring-track, .ring-arc { fill: none; stroke-width: 3; }
+.ring-track { stroke: var(--ring-track); }
+.ring-arc { stroke: var(--ring-progress); stroke-linecap: round; stroke-dasharray: 0 101; transition: stroke-dasharray calc(600ms * var(--speed)) var(--ease-out); }
+
+.bankroll {
+  margin-top: clamp(14px, 3vh, 30px);
+  font-size: clamp(58px, calc(var(--W) * .177), 80px);
+  font-weight: 200; line-height: 1.12; letter-spacing: -.012em;
+  color: var(--text); white-space: nowrap;
+  transition: color calc(250ms * var(--speed));
+}
+.bankroll.up { color: var(--gain); }
+.bankroll.down { color: var(--loss); }
+.btn-free {
+  margin-top: 10px; height: 40px; padding: 0 18px; border-radius: 20px;
+  border: 2px solid var(--line-2); color: var(--text); font-size: 15px;
+}
+.btn-free:active { background: var(--surface); }
+
+.modes {
+  margin-top: clamp(22px, 5vh, 52px);
+  margin-left: calc(-1 * var(--padL)); margin-right: calc(-1 * var(--padR));
+  padding: 6px var(--padR) 10px var(--padL);
+  scroll-padding-inline: var(--padL) var(--padR);
+  display: flex; gap: 20px;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.modes::-webkit-scrollbar { display: none; }
+.mode {
+  position: relative; flex: none;
+  width: calc(var(--W) - var(--padL) - var(--padR) - 30px);
+  height: clamp(168px, calc(var(--W) * .455), 210px);
+  border-radius: 28px; padding: 26px 24px 24px;
+  display: flex; flex-direction: column; align-items: flex-start; text-align: left;
+  scroll-snap-align: center;
+  transform: scale(var(--mode-scale, 1));
+  transform-origin: center;
+}
+.mode:first-child { scroll-snap-align: start; }
+.mode:last-child { scroll-snap-align: end; }
+.mode-ai { background: var(--grad-ai); }
+.mode-online { background: var(--grad-online); }
+.mode-icon { font-size: clamp(50px, calc(var(--W) * .135), 62px); line-height: 1; margin-left: -2px; }
+.mode-title { margin-top: auto; font-size: clamp(22px, calc(var(--W) * .059), 26px); color: var(--mode-title); line-height: 1.15; }
+.mode-sub { margin-top: 10px; font-size: 15px; color: var(--mode-sub); }
+.mode-lock { position: absolute; top: 22px; right: 24px; font-size: 20px; line-height: 1; }
+.mode.locked .mode-icon, .mode.locked .mode-title { opacity: .85; }
+.mode:active { filter: brightness(.96); }
+
+.board { margin-top: clamp(26px, 5vh, 56px); }
+.lb-head { display: flex; align-items: center; justify-content: space-between; height: 24px; }
+.lb-head h2 { font-size: 17px; font-weight: 400; }
+.help {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 1.6px solid var(--text-2); color: var(--text-2);
+  font-size: 12px; font-weight: 600; line-height: 1; display: grid; place-items: center;
+  position: relative;
+}
+.help::after { content: ""; position: absolute; inset: -12px; }
+.lb { list-style: none; margin-top: 14px; }
+.lb li {
+  height: 72px; display: grid; grid-template-columns: 52px 56px minmax(0, 1fr); align-items: center;
+  margin-inline: -10px; padding-inline: 10px; border-radius: 18px;
+}
+.lb li.me { background: var(--me-row); }
+.lb-medal { justify-self: center; font-size: 24px; line-height: 1; }
+.lb-rank { justify-self: center; font-size: 15px; color: var(--text); }
+.lb-avatar { font-size: 38px; line-height: 1; justify-self: start; }
+.lb-name { font-size: 16px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-xp { font-size: 13px; color: var(--text-2); margin-top: 3px; }
+
+.nav {
+  position: absolute; z-index: 3;
+  left: calc(-1 * var(--padL)); right: calc(-1 * var(--padR));
+  bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+  height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: var(--padL); padding-right: var(--padR);
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  background: var(--nav-bg);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+}
+.nav-btn { position: relative; display: grid; place-items: center; color: var(--nav-idle); }
+.nav-btn svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.nav-btn.active { color: var(--nav-active); }
+.nav-btn.active .fill { fill: currentColor; }
+.nav-btn.active .cut { stroke: var(--bg); stroke-width: 2.2; }
+.nav-dot { position: absolute; top: calc(50% - 16px); left: calc(50% + 7px); width: 9px; height: 9px; border-radius: 50%; background: var(--nav-badge); }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Stakes picker                                                                               */
+/* ------------------------------------------------------------------------------------------ */
+.stakes { display: flex; flex-direction: column; }
+.stakes-panel {
+  margin-top: calc(-1 * env(safe-area-inset-top, 0px));
+  margin-left: calc(-1 * var(--padL)); margin-right: calc(-1 * var(--padR));
+  padding: env(safe-area-inset-top, 0px) var(--padR) clamp(22px, 3.4vh, 32px) var(--padL);
+  border-radius: 0 0 40px 40px;
+  background: var(--panel-grad);
+}
+.bar { height: 48px; margin-top: 6px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; }
+.bar-title { text-align: center; font-size: 18px; color: var(--text); }
+.bar .icon-btn { margin-left: -10px; }
+.stakes-info { margin-top: clamp(16px, 4.5vh, 48px); display: flex; flex-direction: column; align-items: center; text-align: center; }
+.st-label { font-size: 18px; color: var(--text); line-height: 1.2; transition: color calc(150ms * var(--speed)); }
+.st-value { font-size: clamp(38px, calc(var(--W) * .102), 46px); font-weight: 700; line-height: 1.15; letter-spacing: -.01em; color: var(--text); transition: color calc(150ms * var(--speed)); }
+.st-label.tint, .st-value.tint { color: var(--tint); }
+.st-value.tint { margin-bottom: clamp(16px, 3vh, 30px); }
+.stakes.unaffordable #buyin-label { color: var(--unafford-label); }
+.stakes.unaffordable #buyin-value { color: var(--unafford); }
+.st-note { margin-top: 10px; font-size: 14px; color: var(--text-2); }
+.ticks {
+  margin-top: clamp(18px, 4vh, 40px);
+  height: 64px; display: grid; grid-template-columns: repeat(8, 1fr); align-items: end;
+  touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none;
+  border-radius: 12px;
+}
+.tick-cell { height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.tick {
+  display: block; width: 2px; height: 28px; border-radius: 2px;
+  background: var(--tick-ok); opacity: var(--o, .15);
+  transition: height calc(140ms * var(--speed)) var(--ease-out), width calc(140ms * var(--speed)), opacity calc(140ms * var(--speed));
+}
+.tick.no { background: var(--unafford); }
+.tick.active { width: 4px; height: 56px; opacity: 1; }
+.ticks.dragging .tick { transition-duration: 0s; }
+.stakes-bottom {
+  margin-top: auto; padding-bottom: clamp(14px, 2.4vh, 20px);
+  display: flex; flex-direction: column; align-items: stretch; gap: 14px;
+}
+.stakes-seat { text-align: center; font-size: 14px; color: var(--text-2); }
+.btn-primary#btn-start { text-transform: uppercase; font-weight: 400; letter-spacing: .03em; }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Table                                                                                       */
+/* ------------------------------------------------------------------------------------------ */
+.table {
+  --avatar: clamp(34px, calc(var(--W) * .1), 44px);
+  --seat-w: calc(var(--W) * .136);
+  --mini-w: calc(var(--W) * .0435);
+  --mini-h: calc(var(--mini-w) * 1.63);
+  --bubble-h: clamp(22px, 2.6dvh, 24px);
+  --btn-h: clamp(46px, 7.8dvh, 60px);
+  --btn-gap: clamp(8px, calc(var(--W) * .023), 10px);
+  --card-w: min(calc(var(--W) * .255), 15.5dvh, 118px);
+  --card-h: calc(var(--card-w) * 1.356);
+  --step: calc(var(--card-w) * .47);
+  --deck-w: min(calc(var(--W) * .17), 10.5dvh, 75px);
+  --deck-h: calc(var(--deck-w) * 1.375);
+  --row-gap: clamp(10px, 2.1dvh, 20px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+  padding-bottom: var(--row-gap);
+}
+.t-top { height: clamp(40px, 5.2dvh, 48px); margin-top: 4px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.t-top .icon-btn { justify-self: start; }
+.t-stakes { font-size: 13px; color: var(--text-2); letter-spacing: .02em; }
+.t-xp { justify-self: end; }
+.t-xp { display: flex; align-items: center; gap: 6px; font-size: 15px; color: var(--text); opacity: 0; transition: opacity calc(250ms * var(--speed)); }
+.t-xp.show { opacity: 1; }
+.t-xp svg { width: 11px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* opponents */
+.opps { margin-top: clamp(2px, 1.6dvh, 22px); display: flex; justify-content: space-between; }
+.seat {
+  position: relative; width: var(--seat-w); flex: none;
+  display: flex; flex-direction: column; align-items: center;
+  transition: opacity calc(200ms * var(--speed));
+}
+.seat.empty { visibility: hidden; }
+.seat-marker { height: clamp(12px, 1.6dvh, 15px); width: 100%; display: flex; align-items: flex-start; justify-content: center; }
+.seat-marker::before {
+  content: ""; width: 10px; height: 7px; background: var(--marker); opacity: 0;
+  clip-path: polygon(0 0, 100% 0, 50% 100%); border-radius: 1px;
+  transition: opacity calc(150ms * var(--speed));
+}
+.seat.thinking .seat-marker::before { opacity: 1; animation: pulse calc(800ms * var(--speed)) ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.seat-body { display: flex; flex-direction: column; align-items: center; width: 100%; transition: opacity calc(120ms * var(--speed)); }
+.seat-avatar { position: relative; width: var(--avatar); height: var(--avatar); display: grid; place-items: center; font-size: calc(var(--avatar) * .88); line-height: 1; }
+.dealer {
+  position: absolute; left: calc(50% + 4px); top: calc(50% + 6px);
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--dealer-bg); color: var(--dealer-ink);
+  font: 700 11px/20px var(--font); text-align: center;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.seat-name { margin-top: clamp(4px, .8dvh, 8px); max-width: calc(100% + 14px); font-size: 12px; line-height: 14px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat-stack { font-size: 15px; line-height: 18px; color: var(--text-stack); white-space: nowrap; transition: color calc(200ms * var(--speed)); }
+.seat-stack.up, .info-stack.up { color: var(--gain); }
+.seat-label {
+  position: absolute; left: -8px; right: -8px;
+  top: clamp(12px, 1.6dvh, 15px); height: var(--avatar);
+  display: grid; place-items: center;
+  font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity calc(120ms * var(--speed));
+}
+.seat.labeled .seat-body { opacity: .22; }
+.seat.labeled .seat-label { opacity: 1; }
+.seat.folded, .seat.out { opacity: .2; }
+.seat.folded.labeled, .seat.out.labeled { opacity: 1; }
+.seat.won .seat-name { color: var(--text); }
+.seat.lost .seat-body { opacity: .5; }
+.seat.lost.labeled .seat-body { opacity: .22; }
+.seat-cards { margin-top: clamp(4px, .8dvh, 8px); height: var(--mini-h); display: flex; gap: 1px; justify-content: center; }
+.seat-bet { margin-top: clamp(3px, .6dvh, 6px); height: var(--bubble-h); display: flex; justify-content: center; }
+
+.bubble {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: var(--bubble-h); min-width: var(--bubble-h); padding: 0 7px; border-radius: 999px;
+  background: var(--surface); color: var(--bet-ink);
+  font-size: 15px; font-weight: 600; line-height: 1; white-space: nowrap;
+}
+
+/* mini cards under the opponents */
+.mini {
+  position: relative; flex: none; width: var(--mini-w); height: var(--mini-h);
+  border-radius: 4px; background: var(--card-face); overflow: hidden;
+  transition: filter calc(120ms * var(--speed));
+}
+.mini.back { opacity: .92; }
+.mini.back::after {
+  content: ""; position: absolute; inset: 2px;
+  background: repeating-linear-gradient(135deg, var(--card-back-ink) 0 1px, transparent 1px 4px);
+}
+.mini .r { position: absolute; left: 2px; right: 0; top: 3px; font-size: clamp(9px, calc(var(--mini-w) * .6), 11px); line-height: 1; font-weight: 600; color: var(--card-ink); letter-spacing: -.06em; text-align: left; }
+.mini .s { position: absolute; left: 2px; bottom: 3px; font-size: clamp(8px, calc(var(--mini-w) * .5), 10px); line-height: 1; color: var(--card-suit-dark); }
+.mini.red .r, .mini.red .s { color: var(--card-red); }
+.mini.dim, .card.dim { filter: brightness(.4); }
+
+/* middle: deck, pill, pot, svara banner */
+.middle { position: relative; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, 1.4dvh, 14px); }
+.deck { position: relative; flex: none; width: var(--deck-w); height: var(--deck-h); transition: transform calc(250ms * var(--speed)) var(--ease-out); }
+.deck-layer, .deck-top { position: absolute; inset: 0; border-radius: calc(var(--deck-w) * .18); }
+.deck-layer.l2 { background: var(--deck-l2); transform: translate(-4px, -4px); }
+.deck-layer.l1 { background: var(--deck-l1); transform: translate(-2px, -2px); }
+.deck-top { background: var(--card-face); }
+.back::after, .card.back::after, .fly-card::after {
+  content: ""; position: absolute; inset: calc(var(--deck-w) * .1);
+  background: repeating-linear-gradient(135deg, var(--card-back-ink) 0 2px, transparent 2px 9px);
+}
+.pill {
+  height: 28px; padding: 0 11px; border-radius: 10px;
+  display: inline-flex; align-items: center;
+  background: var(--pill-bg); color: var(--pill-ink); font-size: 15px; white-space: nowrap;
+}
+.pot { display: flex; flex-direction: column; align-items: center; }
+.pot-label { font-size: 13px; color: var(--text-2); }
+.pot-amount { margin-top: 2px; font-size: clamp(28px, calc(var(--W) * .077), 34px); font-weight: 300; line-height: 1.1; color: var(--text); }
+.svara-banner { display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity calc(150ms * var(--speed)); }
+/* the svara sheet would slice the banner in half; the sheet says the same thing */
+body:has(#sheet-svara.open) .svara-banner { opacity: 0; }
+.svara-word { font-size: clamp(42px, calc(var(--W) * .118), 52px); font-weight: 800; letter-spacing: .04em; line-height: 1; color: var(--win-gold); }
+.svara-sub { margin-top: 8px; font-size: 15px; color: var(--text-2); white-space: nowrap; }
+.middle.svara .pot { display: none; }
+.middle.svara .deck { transform: translateY(-6px); }
+
+/* hero lane, actions */
+.hero-bet { height: calc(var(--bubble-h) + clamp(6px, 1.3dvh, 12px)); padding-left: 10px; display: flex; align-items: flex-start; }
+.actions {
+  height: var(--btn-h); display: grid; gap: var(--btn-gap);
+  grid-template-columns: .8fr 1fr 1fr var(--btn-h);
+}
+.actions[data-mode="allin-only"] { grid-template-columns: .8fr 1.7fr; }
+.actions[data-mode="single"] { grid-template-columns: minmax(0, 1fr); }
+.act {
+  min-width: 0; height: 100%;
+  border: 2px solid var(--line); border-radius: 22px;
+  background: transparent; color: var(--text-2);
+  font-size: clamp(14px, calc(var(--W) * .039), 17px); line-height: 1.1;
+  padding: 0 6px;
+  display: grid; place-items: center;
+  transition: background-color calc(100ms * var(--speed)), color calc(100ms * var(--speed)), opacity calc(100ms * var(--speed));
+}
+.act-in { display: flex; align-items: baseline; justify-content: center; gap: .3em; white-space: nowrap; min-width: 0; max-width: 100%; }
+.act .amt:empty { display: none; }
+.act-more svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.table.turn .act:not(:disabled), .actions.ready .act:not(:disabled) {
+  background: var(--surface); border-color: var(--surface); color: var(--text);
+  transition-duration: calc(150ms * var(--speed));
+}
+.act:not(:disabled):active { background: var(--surface-press); border-color: var(--surface-press); }
+.act.illegal { opacity: .4; }
+.act.stack .act-in { flex-direction: column; align-items: center; gap: 1px; }
+.act.stack .amt { font-size: 12px; }
+
+/* hand row */
+.hand-row { margin-top: var(--row-gap); height: var(--card-h); display: flex; gap: clamp(12px, 3.6vw, 16px); }
+.hand { position: relative; flex: none; width: calc(var(--card-w) + 2 * var(--step)); height: var(--card-h); }
+.card {
+  position: absolute; top: 0; left: calc(var(--step) * var(--i, 0));
+  width: var(--card-w); height: var(--card-h);
+  border-radius: calc(var(--card-w) * .2);
+  background: var(--card-face); overflow: hidden;
+  transition: filter calc(120ms * var(--speed));
+}
+.card + .card { box-shadow: -10px 0 18px -8px var(--shadow-card); }
+.card .r {
+  position: absolute; left: calc(var(--card-w) * .14); top: calc(var(--card-h) * .13);
+  font-size: calc(var(--card-w) * .40); line-height: 1; font-weight: 400; color: var(--card-ink); letter-spacing: -.04em;
+}
+.card .r.ten { font-size: calc(var(--card-w) * .36); letter-spacing: -.08em; left: calc(var(--card-w) * .12); }
+.card .s {
+  position: absolute; left: calc(var(--card-w) * .18); bottom: calc(var(--card-h) * .12);
+  font-size: calc(var(--card-w) * .25); line-height: 1; color: var(--card-suit-dark);
+}
+.card.red .r, .card.red .s { color: var(--card-red); }
+/* joker mark: inside the strip that stays visible when the next card covers this one */
+.card .jk { position: absolute; left: calc(var(--card-w) * .2); top: 50%; transform: translateY(-50%); font-size: clamp(12px, calc(var(--card-w) * .13), 15px); line-height: 1; color: var(--win-gold); }
+.card.back::after { inset: calc(var(--card-w) * .075); }
+
+.info {
+  position: relative; flex: 1; min-width: 0; height: var(--card-h);
+  border: 2px solid var(--line); border-radius: clamp(20px, 5.4vw, 24px);
+  transition: background-color calc(100ms * var(--speed)), border-color calc(100ms * var(--speed));
+  text-align: center;
+}
+.table.turn .info { background: var(--surface); border-color: var(--surface); transition-duration: calc(150ms * var(--speed)); }
+.info-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; display: block; }
+.info-track {
+  display: block; height: 200%;
+  transition: transform calc(250ms * var(--speed)) cubic-bezier(.3, 1.25, .5, 1);
+}
+.info.page-b .info-track { transform: translateY(-50%); }
+.info-page {
+  height: 50%; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: calc(var(--card-h) * .1) 6px calc(var(--card-h) * .11);
+}
+.page-b { justify-content: space-evenly; padding-block: calc(var(--card-h) * .07); }
+.info-label { display: block; font-size: clamp(12px, 3.2vw, 13px); line-height: 1.2; color: var(--text-2); min-height: 1.2em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.info-avatar { position: relative; display: block; font-size: clamp(34px, calc(var(--card-h) * .29), 46px); line-height: 1; }
+.info-avatar .dealer { left: calc(50% + 6px); top: calc(50% + 6px); }
+.info-stack { display: block; font-size: clamp(19px, calc(var(--W) * .05), 22px); line-height: 1.1; color: var(--text); transition: color calc(200ms * var(--speed)); }
+.info-pct { display: block; font-size: clamp(26px, calc(var(--W) * .077), 34px); line-height: 1.05; color: var(--text); }
+.info-pct.gold { color: var(--win-gold); }
+.dots { position: absolute; right: -11px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
+.dots i { display: block; width: 4px; height: 4px; border-radius: 50%; background: var(--dot-off); transition: background-color calc(150ms * var(--speed)); }
+.info:not(.page-b) .dots i:first-child, .info.page-b .dots i:last-child { background: var(--card-face); }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Flights (deal, sweep, payout) live in a fixed overlay in viewport coordinates               */
+/* ------------------------------------------------------------------------------------------ */
+.fx { position: fixed; inset: 0; z-index: 15; pointer-events: none; overflow: hidden; }
+.fly { position: fixed; left: 0; top: 0; margin: 0; will-change: transform, opacity; }
+.fly-card { background: var(--card-face); border-radius: 12%/9%; overflow: hidden; transform-origin: 0 0; }
+.fly-card::after { inset: 10%; }
+.fly-chip { display: inline-flex; transform-origin: 50% 50%; }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Sheets                                                                                      */
+/* ------------------------------------------------------------------------------------------ */
+.sheet-layer { position: fixed; inset: 0; z-index: 20; }
+.backdrop { position: absolute; inset: 0; background: var(--backdrop); opacity: 0; transition: opacity calc(200ms * var(--speed)); }
+.sheet-layer.open .backdrop { opacity: 1; }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 480px;
+  max-height: calc(100% - env(safe-area-inset-top, 0px) - 8px); overflow-y: auto;
+  background: var(--surface); border-radius: 32px 32px 0 0;
+  padding: 7px var(--padR) calc(20px + env(safe-area-inset-bottom, 0px)) var(--padL);
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  box-shadow: 0 -10px 40px var(--shadow-sheet);
+  transform: translateY(105%);
+  transition: transform calc(120ms * var(--speed)) ease-in;
+  scrollbar-width: none;
+}
+.sheet.open { transform: none; transition: transform calc(220ms * var(--speed)) var(--ease-out); }
+.grabber { width: 32px; height: 4px; border-radius: 2px; background: var(--handle); flex: none; }
+.sheet-icon { margin-top: clamp(18px, 4dvh, 44px); font-size: clamp(64px, 11dvh, 100px); line-height: 1; }
+.sheet-title { margin-top: clamp(14px, 2.6dvh, 26px); font-size: 26px; font-weight: 600; line-height: 1.2; color: var(--text); text-wrap: balance; }
+.sheet-body { margin-top: 10px; max-width: 370px; padding-inline: 8px; font-size: 16px; line-height: 20px; color: var(--text-3); text-wrap: balance; }
+.sheet-body:empty { display: none; }
+.sheet-buttons { width: 100%; margin-top: clamp(22px, 4dvh, 40px); display: flex; flex-direction: column; gap: 12px; }
+
+.raise-label { margin-top: clamp(16px, 3dvh, 30px); font-size: 18px; color: var(--text-2); }
+.raise-amount { margin-top: 2px; font-size: clamp(40px, calc(var(--W) * .102), 46px); font-weight: 700; line-height: 1.15; color: var(--text); }
+.raise-range { width: 100%; margin-top: clamp(14px, 2.6dvh, 26px); }
+.raise-ends { display: flex; justify-content: space-between; margin-top: 6px; font-size: 13px; color: var(--text-2); }
+input[type="range"] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 32px; margin: 0;
+  background: transparent; cursor: pointer; touch-action: none;
+}
+input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--line-2); }
+input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line-2); }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 28px; height: 28px; margin-top: -12px;
+  border-radius: 50%; background: var(--card-face); border: 0; box-shadow: 0 2px 8px var(--shadow-card);
+}
+input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--card-face); border: 0; }
+input[type="range"]:focus-visible { outline-offset: 4px; border-radius: 16px; }
+.presets { width: 100%; margin-top: clamp(14px, 2.4dvh, 22px); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.preset {
+  height: 36px; border-radius: 18px; border: 2px solid var(--line-2);
+  font-size: 15px; color: var(--text); white-space: nowrap; padding: 0 4px;
+  transition: background-color calc(120ms * var(--speed));
+}
+.preset.on { background: var(--surface-2); border-color: var(--surface-2); }
+.preset:disabled { opacity: .35; }
+
+/* toast */
+.toast {
+  position: fixed; z-index: 30; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 12px); max-width: calc(100% - 48px);
+  padding: 10px 18px; border-radius: 18px; background: var(--toast-bg); color: var(--text);
+  font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0; pointer-events: none;
+  transition: opacity 180ms, transform 180ms var(--ease-out);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.on-table { bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 54px); }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Small screens and reduced motion                                                            */
+/* ------------------------------------------------------------------------------------------ */
+@media (max-height: 700px) {
+  .sheet-icon { font-size: 64px; margin-top: 16px; }
+  .sheet-title { font-size: 24px; margin-top: 12px; }
+  .sheet-buttons { margin-top: 20px; }
+}
+@media (max-height: 600px) {
+  .sheet-icon { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .info-track { transition: none; }
+  .seat.thinking .seat-marker::before { animation: none; }
+  .sheet, .sheet.open { transform: none; opacity: 0; transition: opacity 120ms; }
+  .sheet.open { opacity: 1; }
+  .ring-arc, .tick, .deck { transition: none; }
+  .toast, .toast.show { transform: translate(-50%, 0); transition: opacity 120ms; }
+}
+</style>
+</head>
+<body>
+<div id="app" class="app" lang="bg">
+
+  <!-- ============================== HOME ============================== -->
+  <section id="screen-home" class="screen home" data-screen="home" aria-label="Начало">
+    <div class="home-scroll" id="home-scroll">
+      <header class="home-top">
+        <div class="xp-badge" id="home-xp" title="Опит">
+          <svg class="gem" viewBox="0 0 16 18" aria-hidden="true"><path d="M8 0.8 15 4.9v8.2L8 17.2 1 13.1V4.9z"/><path class="gem-hi" d="M8 0.8 15 4.9 8 9 1 4.9z"/></svg>
+          <span id="home-xp-value" class="num">0</span>
+          <span class="sr-only">XP</span>
+        </div>
+        <div class="level-ring" id="home-level" title="Ниво">
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle class="ring-track" cx="18" cy="18" r="16"></circle>
+            <circle class="ring-arc" id="level-arc" cx="18" cy="18" r="16"></circle>
+          </svg>
+          <span id="home-level-value" class="num">0</span>
+        </div>
+      </header>
+
+      <div class="bankroll num" id="home-bankroll" aria-label="Банка">5 000</div>
+      <button type="button" id="btn-free-chips" data-testid="btn-free-chips" class="btn-free" hidden>Вземи 1 000 безплатни чипа</button>
+
+      <div class="modes" id="modes">
+        <button type="button" class="mode mode-ai" id="mode-ai" data-testid="mode-ai">
+          <span class="mode-icon" aria-hidden="true">🤖</span>
+          <span class="mode-title">AI Арена</span>
+          <span class="mode-sub">Играй срещу компютъра</span>
+        </button>
+        <button type="button" class="mode mode-online locked" id="mode-online" data-testid="mode-online" aria-describedby="mode-online-lock">
+          <span class="mode-icon" aria-hidden="true">🌍</span>
+          <span class="mode-lock" id="mode-online-lock" role="img" aria-label="Заключено">🔒</span>
+          <span class="mode-title">Онлайн маси</span>
+          <span class="mode-sub">Срещу истински хора · скоро</span>
+        </button>
+      </div>
+
+      <section class="board" aria-labelledby="lb-title">
+        <div class="lb-head">
+          <h2 id="lb-title">Седмична класация</h2>
+          <button type="button" class="help" id="btn-lb-help" data-testid="btn-lb-help" aria-label="Как се печели опит">?</button>
+        </div>
+        <ol class="lb" id="leaderboard"></ol>
+      </section>
+    </div>
+
+    <nav class="nav" aria-label="Навигация">
+      <button type="button" class="nav-btn" id="nav-shop" data-testid="nav-shop" aria-label="Магазин">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+        <i class="nav-dot"></i>
+      </button>
+      <button type="button" class="nav-btn active" id="nav-home" data-testid="nav-home" aria-label="Начало" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 10.5 12 4l8 6.5V20H4z"/><path class="cut" d="M9.5 15.5h5"/></svg>
+      </button>
+      <button type="button" class="nav-btn" id="nav-profile" data-testid="nav-profile" aria-label="Профил">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c.6-3.6 3.4-5.6 7-5.6s6.4 2 7 5.6"/></svg>
+      </button>
+    </nav>
+  </section>
+
+  <!-- ============================== STAKES ============================== -->
+  <section id="screen-stakes" class="screen stakes" data-screen="stakes" aria-label="Избор на залог" hidden>
+    <div class="stakes-panel">
+      <div class="bar">
+        <button type="button" class="icon-btn" id="btn-stakes-back" data-testid="btn-stakes-back" aria-label="Назад">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H3.5M9 4 3 10l6 6"/></svg>
+        </button>
+        <span class="bar-title num" id="stakes-bankroll">5 000</span>
+        <span class="bar-spacer" aria-hidden="true"></span>
+      </div>
+      <div class="stakes-info">
+        <div class="st-label tint">Залог</div>
+        <div class="st-value tint num" id="stakes-value">5 / 10</div>
+        <div class="st-label" id="buyin-label">Вход</div>
+        <div class="st-value num" id="buyin-value">200 / 1K</div>
+        <div class="st-note" id="stakes-note">Анте 5 · Мин. залог 10</div>
+      </div>
+      <div class="ticks" id="stakes-slider" data-testid="stakes-slider" role="slider" tabindex="0"
+           aria-label="Залог" aria-valuemin="0" aria-valuemax="7" aria-valuenow="1" aria-valuetext="5 / 10"></div>
+    </div>
+    <div class="stakes-bottom">
+      <p class="stakes-seat" id="stakes-seat">Сядаш с 1 000 чипа</p>
+      <button type="button" class="btn-primary" id="btn-start" data-testid="btn-start">ЗАПОЧНИ ИГРА</button>
+    </div>
+  </section>
+
+  <!-- ============================== TABLE ============================== -->
+  <section id="screen-table" class="screen table" data-screen="table" aria-label="Маса" hidden>
+    <header class="t-top">
+      <button type="button" class="icon-btn" id="btn-leave" data-testid="btn-leave" aria-label="Напусни масата">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M17 10H3.5M9 4 3 10l6 6"/></svg>
+      </button>
+      <div class="t-stakes num" id="table-stakes" title="Анте / минимален залог"></div>
+      <div class="t-xp" id="table-xp" aria-live="polite">
+        <span id="table-xp-value" class="num">+0 XP</span>
+        <svg viewBox="0 0 12 14" aria-hidden="true"><path d="M2 6.5 6 2.5l4 4M2 11.5l4-4 4 4"/></svg>
+      </div>
+    </header>
+
+    <div class="opps" id="opps"></div>
+
+    <div class="middle" id="middle">
+      <div class="deck" id="deck" aria-hidden="true">
+        <span class="deck-layer l2"></span><span class="deck-layer l1"></span><span class="deck-top back" id="deck-top"></span>
+      </div>
+      <div class="pill" id="hand-pill" hidden></div>
+      <div class="pot" id="pot">
+        <div class="pot-label" id="pot-label">Банка</div>
+        <div class="pot-amount num" id="pot-amount">0</div>
+      </div>
+      <div class="svara-banner" id="svara-banner" role="status" hidden>
+        <div class="svara-word">СВАРА!</div>
+        <div class="svara-sub num" id="svara-sub"></div>
+      </div>
+    </div>
+
+    <div class="hero-bet"><span class="bubble num" id="hero-bubble" hidden></span></div>
+
+    <div class="actions" id="actions" data-mode="bet">
+      <button type="button" class="act" id="btn-fold" data-testid="btn-fold" disabled><span class="act-in"><span class="lbl">Пас</span></span></button>
+      <button type="button" class="act" id="btn-call" data-testid="btn-call" disabled><span class="act-in"><span class="lbl">Чек</span><span class="amt num"></span></span></button>
+      <button type="button" class="act" id="btn-raise" data-testid="btn-raise" disabled><span class="act-in"><span class="lbl">Залагам</span><span class="amt num"></span></span></button>
+      <button type="button" class="act act-more" id="btn-raise-more" data-testid="btn-raise-more" aria-label="Избери сума" disabled>
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 11V1.5M2 5.5l4-4 4 4"/></svg>
+      </button>
+      <button type="button" class="act" id="btn-allin" data-testid="btn-allin" hidden disabled><span class="act-in"><span class="lbl">Ва банк</span><span class="amt num"></span></span></button>
+      <button type="button" class="act" id="btn-next" data-testid="btn-next" hidden disabled><span class="act-in"><span class="lbl">Следваща ръка</span></span></button>
+    </div>
+
+    <div class="hand-row">
+      <div class="hand" id="hand" aria-label="Твоите карти"></div>
+      <button type="button" class="info" id="info-box" data-testid="info-box" title="Смени изгледа: стек или шансове">
+        <span class="info-clip">
+          <span class="info-track">
+            <span class="info-page page-a">
+              <span class="info-label" id="info-hand"></span>
+              <span class="info-avatar"><span class="emoji" id="info-avatar">🧑</span><span class="dealer" id="hero-dealer" hidden>D</span></span>
+              <span class="info-stack num" id="info-stack">0</span>
+            </span>
+            <span class="info-page page-b">
+              <span class="info-label">Печалба</span>
+              <span class="info-pct gold num" id="eq-win">–</span>
+              <span class="info-label">Свара</span>
+              <span class="info-pct num" id="eq-tie">–</span>
+            </span>
+          </span>
+        </span>
+        <span class="dots" aria-hidden="true"><i></i><i></i></span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============================== SHEETS ============================== -->
+  <div class="sheet-layer" id="sheet-layer" hidden>
+    <div class="backdrop" id="backdrop"></div>
+
+    <div class="sheet" id="sheet-leave" data-testid="sheet-leave" role="dialog" aria-modal="true" aria-labelledby="leave-title" hidden>
+      <span class="grabber" aria-hidden="true"></span>
+      <div class="sheet-icon" aria-hidden="true">💸</div>
+      <h2 class="sheet-title" id="leave-title">Сигурен ли си?</h2>
+      <p class="sheet-body">Чиповете ти на масата ще се върнат в банката.</p>
+      <div class="sheet-buttons">
+        <button type="button" class="btn-primary" id="btn-leave-confirm" data-testid="btn-leave-confirm">Напусни масата</button>
+        <button type="button" class="btn-secondary" id="btn-leave-stay" data-testid="btn-leave-stay">Остани</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="sheet-raise" data-testid="sheet-raise" role="dialog" aria-modal="true" aria-labelledby="raise-label" hidden>
+      <span class="grabber" aria-hidden="true"></span>
+      <div class="raise-label" id="raise-label">Вдигам до</div>
+      <div class="raise-amount num" id="raise-amount">0</div>
+      <div class="raise-range">
+        <label class="sr-only" for="raise-slider">Сума</label>
+        <input type="range" id="raise-slider" data-testid="raise-slider" min="0" max="1" step="1" value="0">
+        <div class="raise-ends num"><span id="raise-min">0</span><span id="raise-max">0</span></div>
+      </div>
+      <div class="presets" role="group" aria-label="Бърз избор">
+        <button type="button" class="preset" id="preset-min" data-testid="preset-min" data-preset="min">Мин</button>
+        <button type="button" class="preset" id="preset-half" data-testid="preset-half" data-preset="half">½ банка</button>
+        <button type="button" class="preset" id="preset-pot" data-testid="preset-pot" data-preset="pot">Банка</button>
+        <button type="button" class="preset" id="preset-allin" data-testid="preset-allin" data-preset="allin">Ва банк</button>
+      </div>
+      <div class="sheet-buttons">
+        <button type="button" class="btn-primary" id="btn-raise-confirm" data-testid="btn-raise-confirm">Вдигам до 0</button>
+        <button type="button" class="btn-secondary" id="btn-raise-cancel" data-testid="btn-raise-cancel">Отказ</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="sheet-svara" data-testid="sheet-svara" role="dialog" aria-modal="true" aria-labelledby="svara-title" hidden>
+      <span class="grabber" aria-hidden="true"></span>
+      <div class="sheet-icon" aria-hidden="true">⚔️</div>
+      <h2 class="sheet-title num" id="svara-title">Свара! Влез за 0?</h2>
+      <p class="sheet-body num" id="svara-body"></p>
+      <div class="sheet-buttons">
+        <button type="button" class="btn-primary" id="btn-svara-join" data-testid="btn-svara-join">Влизам</button>
+        <button type="button" class="btn-secondary" id="btn-svara-decline" data-testid="btn-svara-decline">Отказвам</button>
+      </div>
+    </div>
+
+    <div class="sheet" id="sheet-busted" data-testid="sheet-busted" role="dialog" aria-modal="true" aria-labelledby="busted-title" hidden>
+      <span class="grabber" aria-hidden="true"></span>
+      <div class="sheet-icon" aria-hidden="true">🫠</div>
+      <h2 class="sheet-title" id="busted-title">Свършиха ти чиповете</h2>
+      <p class="sheet-body num" id="busted-body"></p>
+      <div class="sheet-buttons">
+        <button type="button" class="btn-primary" id="btn-rebuy" data-testid="btn-rebuy">Купи отново</button>
+        <button type="button" class="btn-secondary" id="btn-busted-home" data-testid="btn-busted-home">Към началото</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fx" id="fx" aria-hidden="true"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+<script>
+/*
+ * Svara rules engine: deck, hand scoring and the betting / showdown / svara state machine.
+ * No DOM. UMD classic script: browser global `SvaraEngine`, Node `module.exports`.
+ * The public contract is described in docs/SPEC.md §3.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.SvaraEngine = factory();
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // Cards
+  // ---------------------------------------------------------------------------
+
+  const RANKS = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+  const SUITS = ['s', 'h', 'd', 'c'];
+  const VALUES = { 7: 7, 8: 8, 9: 9, 10: 10, J: 10, Q: 10, K: 10, A: 11 };
+  const JOKER_VALUE = 11;
+  const TRIPS_LABELS = {
+    A: 'Три аса', K: 'Три попа', Q: 'Три дами', J: 'Три валета',
+    10: 'Три десетки', 9: 'Три деветки', 8: 'Три осмици',
+  };
+  // When two candidates give the same points, the "special" kind wins.
+  const KIND_PRIORITY = { three7: 4, trips: 3, aces: 2, suit: 1 };
+
+  function makeCard(rank, suit) {
+    return { rank, suit, id: rank + suit };
+  }
+
+  /** 'Ah' / '10d' -> card object. */
+  function parseCard(id) {
+    if (typeof id !== 'string' || id.length < 2) throw new Error(`Invalid card id: ${id}`);
+    const rank = id.slice(0, -1);
+    const suit = id.slice(-1);
+    if (!RANKS.includes(rank) || !SUITS.includes(suit)) throw new Error(`Invalid card id: ${id}`);
+    return makeCard(rank, suit);
+  }
+
+  /** Accepts a card object or a card id; returns a fresh card object. */
+  function toCard(c) {
+    if (typeof c === 'string') return parseCard(c);
+    if (!c || !RANKS.includes(c.rank) || !SUITS.includes(c.suit)) {
+      throw new Error(`Invalid card: ${JSON.stringify(c)}`);
+    }
+    return makeCard(c.rank, c.suit);
+  }
+
+  /** Face value of a card (7♣ is 7 here; its wild value 11 is applied by scoreHand). */
+  function cardValue(card) {
+    return VALUES[toCard(card).rank];
+  }
+
+  function isJoker(card, jokerWild = true) {
+    return !!jokerWild && !!card && card.rank === '7' && card.suit === 'c';
+  }
+
+  function newDeck() {
+    const deck = [];
+    for (const s of SUITS) for (const r of RANKS) deck.push(makeCard(r, s));
+    return deck;
+  }
+
+  /** In-place Fisher–Yates shuffle; rng() must return a number in [0, 1). */
+  function shuffle(deck, rng = Math.random) {
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const t = deck[i]; deck[i] = deck[j]; deck[j] = t;
+    }
+    return deck;
+  }
+
+  /** mulberry32 PRNG: deterministic, good enough for games and tests. */
+  function makeRng(seed) {
+    let a = (seed >>> 0) || 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scoring (SPEC §1)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Score a Svara hand (normally 3 cards; 1–2 cards are scored the same way).
+   * Returns { points, kind: 'three7'|'trips'|'aces'|'suit', label, usedCardIds }.
+   */
+  function scoreHand(cards, { jokerWild = true } = {}) {
+    if (!Array.isArray(cards) || cards.length < 1 || cards.length > 3) {
+      throw new Error('scoreHand expects an array of 1 to 3 cards');
+    }
+    const cs = cards.map(toCard);
+    const ids = cs.map((c) => c.id);
+    if (new Set(ids).size !== ids.length) throw new Error(`scoreHand: duplicate cards ${ids.join(' ')}`);
+    const jokers = cs.filter((c) => isJoker(c, jokerWild));
+    const naturals = cs.filter((c) => !isJoker(c, jokerWild));
+    const candidates = [];
+
+    if (cs.length === 3) {
+      if (cs.every((c) => c.rank === '7')) {
+        // Three 7s (7♣ is a 7 whether or not it is wild).
+        candidates.push({ points: 34, kind: 'three7', label: 'Три седмици', usedCardIds: ids });
+      } else if (naturals.every((c) => c.rank === naturals[0].rank)) {
+        // Natural trips, or joker + a pair completing the trips.
+        const r = naturals[0].rank;
+        candidates.push({ points: VALUES[r] * 3, kind: 'trips', label: TRIPS_LABELS[r], usedCardIds: ids });
+      }
+    }
+
+    const aces = naturals.filter((c) => c.rank === 'A');
+    if (aces.length >= 2) {
+      candidates.push({ points: 22, kind: 'aces', label: 'Два аса', usedCardIds: aces.slice(0, 2).map((c) => c.id) });
+    }
+
+    // Best suit: natural cards of the suit + 11 for the joker (it joins any suit).
+    let best = null;
+    for (const s of SUITS) {
+      const inSuit = naturals.filter((c) => c.suit === s);
+      if (!inSuit.length) continue;
+      const points = inSuit.reduce((sum, c) => sum + VALUES[c.rank], 0) + jokers.length * JOKER_VALUE;
+      if (!best || points > best.points) {
+        const used = new Set(inSuit.concat(jokers).map((c) => c.id));
+        best = { points, kind: 'suit', label: `${points} точки`, usedCardIds: ids.filter((id) => used.has(id)) };
+      }
+    }
+    if (!best) best = { points: JOKER_VALUE, kind: 'suit', label: `${JOKER_VALUE} точки`, usedCardIds: ids };
+    candidates.push(best);
+
+    let pick = candidates[0];
+    for (const c of candidates) {
+      if (c.points > pick.points || (c.points === pick.points && KIND_PRIORITY[c.kind] > KIND_PRIORITY[pick.kind])) {
+        pick = c;
+      }
+    }
+    return { points: pick.points, kind: pick.kind, label: pick.label, usedCardIds: pick.usedCardIds.slice() };
+  }
+
+  /** Comparator: negative when a is better (sorts best first), 0 = tie (svara). */
+  function compareScores(a, b) {
+    return b.points - a.points;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Legal actions (pure function of a state; used by the game and by the AI)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Legal actions for `playerId` in `state` (a game's internal state or a getState() snapshot).
+   * Amounts are always filled in for a player in the hand; the can* flags are true only on
+   * that player's turn.
+   */
+  function legalActions(state, playerId) {
+    const p = state.players.find((q) => q.id === playerId);
+    if (!p) throw new Error(`legalActions: unknown player '${playerId}'`);
+    const bet = state.currentBet;
+    const live = p.inHand && !p.folded;
+    const toCall = live ? Math.max(0, bet - p.roundBet) : 0;
+    const res = {
+      canFold: false, canCheck: false, callAmount: Math.min(toCall, p.stack), canCall: false,
+      canRaise: false, minRaiseTo: state.minRaiseTo, maxRaiseTo: live ? p.roundBet + p.stack : 0,
+      canAllIn: false, allInAmount: live ? p.stack : 0, isBet: bet === 0,
+      // extras
+      isTurn: false, toCall, callIsAllIn: live && toCall > 0 && p.stack <= toCall,
+    };
+    if (state.phase !== 'betting' || state.toAct !== playerId || !live || p.allIn || p.stack <= 0) return res;
+
+    res.isTurn = true;
+    const unit = Math.max(state.lastRaiseSize || 0, state.bb);
+    // Someone else must be able to respond, otherwise raising is pointless (and not allowed).
+    const opponentCanAct = state.players.some((q) => q.id !== p.id && q.inHand && !q.folded && !q.allIn);
+    // Betting is (re)opened for a player who hasn't acted yet, or who faces at least a full
+    // raise since they last acted (incomplete all-ins don't reopen the action).
+    const reopened = !p.acted || bet - p.actedAtBet >= unit;
+    const raiseRight = reopened && opponentCanAct;
+
+    res.canFold = true;
+    res.canCheck = toCall === 0;
+    res.canCall = toCall > 0;
+    res.canRaise = raiseRight && res.maxRaiseTo >= state.minRaiseTo;
+    res.canAllIn = p.stack <= toCall || (raiseRight && res.maxRaiseTo > bet);
+    return res;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Game
+  // ---------------------------------------------------------------------------
+
+  const clone = (x) => (x == null ? x : JSON.parse(JSON.stringify(x)));
+
+  function assertPosInt(v, name) {
+    if (!Number.isInteger(v) || v <= 0) throw new Error(`${name} must be a positive integer (got ${v})`);
+  }
+
+  function createGame(config) {
+    const cfg = config || {};
+    if (!Array.isArray(cfg.players) || cfg.players.length < 2) {
+      throw new Error('createGame: players must be an array with at least 2 seats');
+    }
+    assertPosInt(cfg.ante, 'ante');
+    assertPosInt(cfg.bb, 'bb');
+    const rng = typeof cfg.rng === 'function' ? cfg.rng : Math.random;
+    const jokerWild = cfg.jokerWild !== false;
+    // Safety valve: after this many svara replays in one hand, a tie splits the pot instead.
+    const maxSvaras = cfg.maxSvaras == null ? 10 : cfg.maxSvaras;
+    // Test hook: ({ handNumber, isSvara, svaraCount, order }) -> card[] | id[] (top first;
+    // order[k] gets cards 3k..3k+2). Defaults to a freshly shuffled deck.
+    const deckProvider = typeof cfg.deckProvider === 'function' ? cfg.deckProvider : null;
+    const numSeats = cfg.players.length;
+    const dealerIndex = cfg.dealerIndex == null ? 0 : cfg.dealerIndex;
+    if (!Number.isInteger(dealerIndex) || dealerIndex < 0 || dealerIndex >= numSeats) {
+      throw new Error(`createGame: dealerIndex must be a seat index 0..${numSeats - 1}`);
+    }
+
+    const S = {
+      phase: 'idle', handNumber: 0, isSvara: false, svaraCount: 0,
+      dealerIndex, toAct: null,
+      currentBet: 0, lastRaiseSize: 0, minRaiseTo: cfg.bb, ante: cfg.ante, bb: cfg.bb,
+      pot: 0, deadMoney: 0,
+      svaraPot: 0, svaraParticipants: [], svaraJoinCost: 0, pendingSvaraDecisions: [],
+      players: [], // occupied seats only, sorted by seat
+      lastResult: null,
+    };
+
+    function makePlayer(input, seat) {
+      if (!input || typeof input !== 'object') throw new Error(`Seat ${seat}: player must be an object`);
+      if (input.id == null || input.id === '') throw new Error(`Seat ${seat}: player needs an id`);
+      const stack = input.stack == null ? 0 : input.stack;
+      if (!Number.isInteger(stack) || stack < 0) throw new Error(`Seat ${seat}: stack must be a non-negative integer`);
+      const p = {
+        id: input.id, name: input.name == null ? String(input.id) : input.name, avatar: input.avatar || '',
+        isHuman: !!input.isHuman, seat, stack,
+        roundBet: 0, committed: 0, folded: false, allIn: false, inHand: false, sittingOut: stack === 0,
+        cards: [], lastAction: null, score: null, acted: false, actedAtBet: 0,
+      };
+      if (input.personality !== undefined) p.personality = input.personality;
+      return p;
+    }
+
+    function placePlayer(seat, input) {
+      const p = makePlayer(input, seat);
+      if (S.players.some((q) => q.id === p.id && q.seat !== seat)) {
+        throw new Error(`Player id '${p.id}' is already seated`);
+      }
+      S.players = S.players.filter((q) => q.seat !== seat);
+      S.players.push(p);
+      S.players.sort((a, b) => a.seat - b.seat);
+    }
+
+    cfg.players.forEach((input, seat) => { if (input) placePlayer(seat, input); });
+    if (S.players.length < 2) throw new Error('createGame: at least 2 seated players are required');
+
+    // --- helpers -------------------------------------------------------------
+
+    function byId(id) {
+      const p = S.players.find((q) => q.id === id);
+      if (!p) throw new Error(`Unknown player '${id}'`);
+      return p;
+    }
+    const isLive = (p) => p.inHand && !p.folded;
+
+    /** Seated players clockwise, starting with the seat after `seat`. */
+    function orderFrom(seat) {
+      const off = (p) => (p.seat - seat - 1 + numSeats * 2) % numSeats;
+      return S.players.slice().sort((a, b) => off(a) - off(b));
+    }
+
+    function nextSeatWithChips(seat) {
+      const p = orderFrom(seat).find((q) => q.stack > 0);
+      return p ? p.seat : seat;
+    }
+
+    function betweenHands(what) {
+      if (S.phase !== 'idle' && S.phase !== 'hand-over') {
+        throw new Error(`${what}: only allowed between hands (phase is '${S.phase}')`);
+      }
+    }
+
+    function resetForDeal(p, inHand) {
+      p.roundBet = 0; p.committed = 0; p.folded = false; p.allIn = false; p.inHand = inHand;
+      p.cards = []; p.lastAction = null; p.score = null; p.acted = false; p.actedAtBet = 0;
+    }
+
+    /** Move chips from a stack into the middle as part of this deal. */
+    function put(p, amount, isAnte) {
+      p.stack -= amount;
+      p.committed += amount;
+      if (!isAnte) p.roundBet += amount;
+      S.pot += amount;
+      if (p.stack === 0) p.allIn = true;
+    }
+
+    function getDeck(order) {
+      if (!deckProvider) return shuffle(newDeck(), rng);
+      const deck = deckProvider({ handNumber: S.handNumber, isSvara: S.isSvara, svaraCount: S.svaraCount, order: order.slice() });
+      if (!Array.isArray(deck)) throw new Error('deckProvider must return an array of cards');
+      const cards = deck.map(toCard);
+      if (new Set(cards.map((c) => c.id)).size !== cards.length) throw new Error('deckProvider returned duplicate cards');
+      if (cards.length < order.length * 3) throw new Error('deckProvider returned too few cards');
+      return cards;
+    }
+
+    function dealCards(events) {
+      const order = orderFrom(S.dealerIndex).filter((p) => p.inHand);
+      const deck = getDeck(order.map((p) => p.id));
+      order.forEach((p, k) => {
+        p.cards = deck.slice(k * 3, k * 3 + 3).map(toCard);
+        events.push({ type: 'deal', playerId: p.id, count: 3 });
+      });
+    }
+
+    function needsAction(p) {
+      if (!p.inHand || p.folded || p.allIn) return false;
+      if (p.roundBet < S.currentBet) return true;
+      if (p.acted) return false;
+      // Not acted yet: only needed if somebody could still respond to a bet.
+      return S.players.some((q) => q !== p && q.inHand && !q.folded && !q.allIn);
+    }
+
+    function beginBetting(events) {
+      S.phase = 'betting';
+      S.currentBet = 0;
+      S.lastRaiseSize = 0;
+      S.minRaiseTo = S.bb;
+      const first = orderFrom(S.dealerIndex).find(needsAction);
+      if (first) {
+        S.toAct = first.id;
+        events.push({ type: 'turn', playerId: first.id });
+      } else {
+        // Nobody can bet (everyone all-in, or only one player with chips): straight to showdown.
+        endRound(events);
+      }
+    }
+
+    /**
+     * Pots from committed chips (the standard side-pot construction) + dead svara money.
+     * Each all-in player caps a pot at their committed amount; the top pot takes the rest.
+     * Live players who are not all-in are eligible for every pot (they can still match).
+     */
+    function buildPots() {
+      const live = orderFrom(S.dealerIndex).filter(isLive);
+      if (!live.length) return [];
+      const top = Math.max(...live.map((p) => p.committed));
+      const caps = live.filter((p) => p.allIn && p.committed < top).map((p) => p.committed);
+      const levels = Array.from(new Set(caps)).sort((a, b) => a - b).concat(top);
+      const pots = [];
+      let prev = 0;
+      levels.forEach((level, i) => {
+        let amount = 0;
+        for (const p of S.players) amount += Math.min(p.committed, level) - Math.min(p.committed, prev);
+        if (i === 0) amount += S.deadMoney; // svara money is winnable by every live participant
+        pots.push({ amount, eligible: live.filter((p) => !p.allIn || p.committed >= level).map((p) => p.id) });
+        prev = level;
+      });
+      // Defensive: chips of folded players above the top live level go to the top pot.
+      const extra = S.players.reduce((sum, p) => sum + Math.max(0, p.committed - prev), 0);
+      if (pots.length) pots[pots.length - 1].amount += extra;
+      return pots.filter((pot) => pot.amount > 0);
+    }
+
+    function pay(p, amount, potIndex, uncontested, winners, events) {
+      p.stack += amount;
+      S.pot -= amount;
+      winners.push({ playerId: p.id, amount, potIndex });
+      events.push({ type: 'win', playerId: p.id, amount, potIndex, uncontested });
+    }
+
+    /** Split a pot; odd chips go one by one in seat order starting left of the dealer. */
+    function splitPot(players, amount, potIndex, winners, events) {
+      const ids = new Set(players.map((p) => p.id));
+      const ordered = orderFrom(S.dealerIndex).filter((p) => ids.has(p.id));
+      const share = Math.floor(amount / ordered.length);
+      let rest = amount - share * ordered.length;
+      for (const p of ordered) {
+        const extra = rest > 0 ? 1 : 0;
+        rest -= extra;
+        pay(p, share + extra, potIndex, false, winners, events);
+      }
+    }
+
+    function endRound(events) {
+      events.push({ type: 'round-end', pot: S.pot });
+      for (const p of S.players) p.roundBet = 0;
+      S.toAct = null;
+      S.currentBet = 0;
+      S.lastRaiseSize = 0;
+      S.minRaiseTo = S.bb;
+      const live = S.players.filter(isLive);
+      if (live.length === 1) awardUncontested(live[0], events);
+      else showdown(events);
+    }
+
+    function awardUncontested(winner, events) {
+      const winners = [];
+      pay(winner, S.pot, 0, true, winners, events);
+      S.lastResult = { winners, svara: false, scores: {}, uncontested: true };
+      finishHand(events);
+    }
+
+    function showdown(events) {
+      S.phase = 'showdown';
+      const contenders = orderFrom(S.dealerIndex).filter(isLive);
+      const scores = {};
+      const cards = {};
+      for (const p of contenders) {
+        p.score = scoreHand(p.cards, { jokerWild });
+        scores[p.id] = clone(p.score);
+        cards[p.id] = clone(p.cards);
+      }
+      events.push({ type: 'showdown', scores, cards });
+
+      const winners = [];
+      const tied = new Set();
+      let toSvara = 0;
+      buildPots().forEach((pot, i) => {
+        const eligible = pot.eligible.map(byId);
+        const best = Math.max(...eligible.map((p) => p.score.points));
+        const top = eligible.filter((p) => p.score.points === best);
+        if (top.length === 1) pay(top[0], pot.amount, i, false, winners, events);
+        else if (S.svaraCount < maxSvaras) {
+          toSvara += pot.amount;
+          top.forEach((p) => tied.add(p.id));
+        } else splitPot(top, pot.amount, i, winners, events);
+      });
+      S.lastResult = { winners, svara: toSvara > 0, scores: clone(scores), uncontested: false };
+      if (toSvara > 0) {
+        const participants = orderFrom(S.dealerIndex).filter((p) => tied.has(p.id)).map((p) => p.id);
+        beginSvaraOffer(participants, toSvara, events);
+      } else {
+        finishHand(events);
+      }
+    }
+
+    function beginSvaraOffer(participants, amount, events) {
+      S.phase = 'svara-offer';
+      S.toAct = null;
+      S.deadMoney = 0;
+      S.svaraPot = amount;
+      S.svaraParticipants = participants.slice();
+      // ceil(pot / 2), rounded up to a multiple of the ante
+      S.svaraJoinCost = Math.ceil(Math.ceil(amount / 2) / S.ante) * S.ante;
+      S.pendingSvaraDecisions = orderFrom(S.dealerIndex)
+        .filter((p) => !participants.includes(p.id) && p.stack > 0 && p.stack >= S.svaraJoinCost)
+        .map((p) => p.id);
+      events.push({
+        type: 'svara', participants: participants.slice(), svaraPot: amount,
+        joinCost: S.svaraJoinCost, pending: S.pendingSvaraDecisions.slice(),
+      });
+      if (!S.pendingSvaraDecisions.length) startSvaraDeal(events);
+    }
+
+    function startSvaraDeal(events) {
+      S.svaraCount += 1;
+      S.isSvara = true;
+      S.svaraJoinCost = 0;
+      S.pendingSvaraDecisions = [];
+      S.deadMoney = S.svaraPot;
+      const ids = new Set(S.svaraParticipants);
+      S.svaraParticipants = orderFrom(S.dealerIndex).filter((p) => ids.has(p.id)).map((p) => p.id);
+      events.push({ type: 'svara-start', participants: S.svaraParticipants.slice(), pot: S.pot });
+      for (const p of S.players) {
+        resetForDeal(p, ids.has(p.id));
+        if (p.inHand && p.stack === 0) p.allIn = true; // all-in for the svara pot
+      }
+      dealCards(events); // fresh deck, no ante; the button stays put
+      beginBetting(events);
+    }
+
+    function finishHand(events) {
+      S.phase = 'hand-over';
+      S.toAct = null;
+      S.deadMoney = 0;
+      S.svaraPot = 0;
+      S.svaraParticipants = [];
+      S.svaraJoinCost = 0;
+      S.pendingSvaraDecisions = [];
+      for (const p of S.players) p.sittingOut = p.stack === 0;
+      events.push({ type: 'hand-over' });
+    }
+
+    // --- public API ----------------------------------------------------------
+
+    function startHand() {
+      betweenHands('startHand');
+      if (S.players.filter((p) => p.stack > 0).length < 2) {
+        throw new Error('startHand: at least 2 players with chips are needed');
+      }
+      const dealer = S.players.find((p) => p.seat === S.dealerIndex);
+      if (!dealer || dealer.stack === 0) S.dealerIndex = nextSeatWithChips(S.dealerIndex);
+
+      S.handNumber += 1;
+      S.isSvara = false;
+      S.svaraCount = 0;
+      S.pot = 0;
+      S.deadMoney = 0;
+      S.svaraPot = 0;
+      S.svaraParticipants = [];
+      S.svaraJoinCost = 0;
+      S.pendingSvaraDecisions = [];
+      S.lastResult = null;
+      S.toAct = null;
+      for (const p of S.players) {
+        resetForDeal(p, p.stack > 0);
+        p.sittingOut = p.stack === 0;
+      }
+
+      const events = [{ type: 'hand-start', handNumber: S.handNumber, dealerIndex: S.dealerIndex }];
+      for (const p of orderFrom(S.dealerIndex).filter((q) => q.inHand)) {
+        const amount = Math.min(S.ante, p.stack); // short stack: all-in on the ante
+        put(p, amount, true);
+        events.push({ type: 'ante', playerId: p.id, amount, allIn: p.allIn });
+      }
+      dealCards(events);
+      beginBetting(events);
+      return events;
+    }
+
+    function act(playerId, action) {
+      if (S.phase !== 'betting') throw new Error(`act: no betting in phase '${S.phase}'`);
+      const p = byId(playerId);
+      if (S.toAct !== p.id) throw new Error(`act: it is not ${p.name}'s turn (waiting for '${S.toAct}')`);
+      if (!action || typeof action.type !== 'string') throw new Error('act: action must be { type, amount? }');
+      const L = legalActions(S, p.id);
+      const betBefore = S.currentBet;
+      const stackBefore = p.stack;
+      const type = action.type;
+
+      switch (type) {
+        case 'fold':
+          p.folded = true;
+          break;
+        case 'check':
+          if (!L.canCheck) throw new Error(`act: cannot check, ${L.toCall} to call`);
+          break;
+        case 'call':
+          if (!L.canCall) throw new Error('act: nothing to call (use check)');
+          put(p, L.callAmount);
+          break;
+        case 'raise': {
+          const to = action.amount;
+          if (!Number.isInteger(to)) throw new Error('act: raise needs an integer amount (the raise-to total)');
+          if (to === L.maxRaiseTo && L.canAllIn && to > betBefore) { put(p, p.stack); break; } // all-in raise
+          if (!L.canRaise) {
+            throw new Error(L.maxRaiseTo < L.minRaiseTo && L.maxRaiseTo > betBefore
+              ? `act: not enough chips for a full raise; raise all-in to ${L.maxRaiseTo} or use allin`
+              : 'act: raising is not allowed now (call or fold)');
+          }
+          if (to < L.minRaiseTo) throw new Error(`act: raise to ${to} is below the minimum ${L.minRaiseTo}`);
+          if (to > L.maxRaiseTo) throw new Error(`act: raise to ${to} is more than the stack allows (${L.maxRaiseTo})`);
+          put(p, to - p.roundBet);
+          break;
+        }
+        case 'allin':
+          if (!L.canAllIn) throw new Error('act: all-in is not allowed now (it would be a raise; call or fold)');
+          put(p, p.stack);
+          break;
+        default:
+          throw new Error(`act: unknown action type '${type}'`);
+      }
+
+      if (p.roundBet > S.currentBet) {
+        const increase = p.roundBet - S.currentBet;
+        if (increase >= Math.max(S.lastRaiseSize, S.bb)) S.lastRaiseSize = increase; // a full raise
+        S.currentBet = p.roundBet;
+      }
+      S.minRaiseTo = S.currentBet + Math.max(S.lastRaiseSize, S.bb);
+      p.acted = true;
+      p.actedAtBet = S.currentBet;
+
+      const added = stackBefore - p.stack;
+      const reported = type !== 'fold' && p.allIn ? 'allin' : type;
+      const amount = reported === 'raise' || reported === 'allin' ? p.roundBet : added;
+      const record = { type: reported, amount, added, isBet: (reported === 'raise' || reported === 'allin') && betBefore === 0 };
+      p.lastAction = clone(record);
+      const events = [{ type: 'action', playerId: p.id, action: record, stack: p.stack, roundBet: p.roundBet }];
+
+      const live = S.players.filter(isLive);
+      if (live.length === 1) {
+        endRound(events); // everyone else folded: uncontested, no showdown
+        return events;
+      }
+      const next = orderFrom(p.seat).find(needsAction);
+      if (next) {
+        S.toAct = next.id;
+        events.push({ type: 'turn', playerId: next.id });
+      } else {
+        endRound(events);
+      }
+      return events;
+    }
+
+    function svaraJoin(playerId, join) {
+      if (S.phase !== 'svara-offer') throw new Error(`svaraJoin: no svara offer in phase '${S.phase}'`);
+      const p = byId(playerId);
+      if (!S.pendingSvaraDecisions.includes(p.id)) {
+        throw new Error(`svaraJoin: ${p.name} has no pending svara decision`);
+      }
+      S.pendingSvaraDecisions = S.pendingSvaraDecisions.filter((id) => id !== p.id);
+      const events = [];
+      if (join) {
+        const paid = S.svaraJoinCost;
+        p.stack -= paid;
+        S.pot += paid;
+        S.svaraPot += paid;
+        S.svaraParticipants.push(p.id);
+        events.push({ type: 'svara-join', playerId: p.id, paid });
+      } else {
+        events.push({ type: 'svara-decline', playerId: p.id });
+      }
+      if (!S.pendingSvaraDecisions.length) startSvaraDeal(events);
+      return events;
+    }
+
+    function nextHand() {
+      if (S.phase === 'idle') return startHand();
+      if (S.phase !== 'hand-over') throw new Error(`nextHand: the hand is not over (phase '${S.phase}')`);
+      if (S.players.filter((p) => p.stack > 0).length < 2) {
+        throw new Error('nextHand: at least 2 players with chips are needed');
+      }
+      S.dealerIndex = nextSeatWithChips(S.dealerIndex);
+      return startHand();
+    }
+
+    function setPlayer(seatIndex, player) {
+      betweenHands('setPlayer');
+      if (!Number.isInteger(seatIndex) || seatIndex < 0 || seatIndex >= numSeats) {
+        throw new Error(`setPlayer: seat must be 0..${numSeats - 1}`);
+      }
+      if (player == null) S.players = S.players.filter((p) => p.seat !== seatIndex);
+      else placePlayer(seatIndex, player);
+    }
+
+    function addChips(playerId, amount) {
+      betweenHands('addChips');
+      assertPosInt(amount, 'addChips amount');
+      const p = byId(playerId);
+      p.stack += amount;
+      p.sittingOut = false;
+    }
+
+    function currentPots() {
+      if (S.phase === 'betting' || S.phase === 'showdown') return buildPots();
+      if (S.phase === 'svara-offer') return [{ amount: S.svaraPot, eligible: S.svaraParticipants.slice() }];
+      return [];
+    }
+
+    function getState() {
+      return clone({
+        phase: S.phase, handNumber: S.handNumber, isSvara: S.isSvara, svaraCount: S.svaraCount,
+        dealerIndex: S.dealerIndex, toAct: S.toAct,
+        currentBet: S.currentBet, minRaiseTo: S.minRaiseTo, lastRaiseSize: S.lastRaiseSize,
+        ante: S.ante, bb: S.bb, jokerWild, numSeats,
+        pot: S.pot, pots: currentPots(),
+        svaraPot: S.svaraPot, svaraParticipants: S.svaraParticipants, svaraJoinCost: S.svaraJoinCost,
+        pendingSvaraDecisions: S.pendingSvaraDecisions,
+        players: S.players,
+        lastResult: S.lastResult,
+      });
+    }
+
+    return {
+      startHand, getState, act, svaraJoin, nextHand, setPlayer, addChips,
+      legalActions: (playerId) => legalActions(S, playerId),
+    };
+  }
+
+  return {
+    RANKS: RANKS.slice(), SUITS: SUITS.slice(),
+    cardValue, isJoker, newDeck, shuffle, makeRng, parseCard, scoreHand, compareScores,
+    legalActions, createGame,
+  };
+});
+</script>
+<script>
+/*
+ * Svara bots: Monte Carlo equity + personality-driven decisions. No DOM.
+ * UMD classic script: browser global `SvaraAI` (needs `SvaraEngine` loaded first), Node `module.exports`.
+ * Bots only look at their own cards and public information (pot, bets, who is still in).
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./engine.js'));
+  else root.SvaraAI = factory(root.SvaraEngine);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (E) {
+  'use strict';
+  if (!E) throw new Error('SvaraAI: load engine.js (SvaraEngine) before ai.js');
+
+  // ---------------------------------------------------------------------------
+  // Fast scoring: every 3-card hand pre-scored into a 32×32×32 lookup table
+  // ---------------------------------------------------------------------------
+
+  const DECK = E.newDeck();
+  const INDEX = {};
+  DECK.forEach((c, i) => { INDEX[c.id] = i; });
+  const tables = {};
+
+  function pointsTable(jokerWild) {
+    const key = jokerWild ? 'wild' : 'plain';
+    if (tables[key]) return tables[key];
+    const t = new Uint8Array(32 * 32 * 32);
+    for (let i = 0; i < 32; i++) {
+      for (let j = i + 1; j < 32; j++) {
+        for (let k = j + 1; k < 32; k++) {
+          const pts = E.scoreHand([DECK[i], DECK[j], DECK[k]], { jokerWild }).points;
+          for (const [a, b, c] of [[i, j, k], [i, k, j], [j, i, k], [j, k, i], [k, i, j], [k, j, i]]) {
+            t[(a << 10) | (b << 5) | c] = pts;
+          }
+        }
+      }
+    }
+    return (tables[key] = t);
+  }
+
+  function cardIndex(card) {
+    const id = typeof card === 'string' ? card : card && card.id;
+    const i = INDEX[id];
+    if (i === undefined) throw new Error(`SvaraAI: invalid card ${JSON.stringify(card)}`);
+    return i;
+  }
+
+  // Every 3-card hand (4960) as a card bitmask, strongest first, so "hands with at least N
+  // points" is a prefix of the list: atLeast[N] = how many there are.
+  const handLists = {};
+
+  function handList(jokerWild) {
+    const key = jokerWild ? 'wild' : 'plain';
+    if (handLists[key]) return handLists[key];
+    const table = pointsTable(jokerWild);
+    const all = [];
+    for (let i = 0; i < 32; i++) {
+      for (let j = i + 1; j < 32; j++) {
+        for (let k = j + 1; k < 32; k++) all.push({ pts: table[(i << 10) | (j << 5) | k], mask: (1 << i) | (1 << j) | (1 << k) });
+      }
+    }
+    all.sort((a, b) => b.pts - a.pts);
+    const masks = Int32Array.from(all, (h) => h.mask);
+    const pts = Uint8Array.from(all, (h) => h.pts);
+    const atLeast = new Uint16Array(36);
+    for (let n = 0; n < 36; n++) atLeast[n] = all.filter((h) => h.pts >= n).length;
+    return (handLists[key] = { masks, pts, atLeast });
+  }
+
+  /** A random hand from list[0 .. limit) that shares no card with `used` (strongest free hand as a fallback). */
+  function drawFromList(list, limit, used, rng) {
+    for (let tries = 0; tries < 100; tries++) {
+      const h = Math.floor(rng() * limit);
+      if ((list.masks[h] & used) === 0) return h;
+    }
+    for (let h = 0; h < list.masks.length; h++) if ((list.masks[h] & used) === 0) return h;
+    return -1; // unreachable: at most 9 opponents leave free cards
+  }
+
+  /**
+   * Monte Carlo equity of `myCards` against `numOpponents` hands dealt from the other 29 cards.
+   * win = strictly best hand, tie = tied for best (→ svara).
+   * By default every opponent holds a random hand. With `minPoints`, the first `bettors` opponents
+   * (players who bet or raised) hold a hand of at least `minPoints`, except for a `bluffMix` share
+   * of deals where they hold any hand.
+   */
+  function equity(myCards, numOpponents, {
+    iterations = 1200, rng = Math.random, jokerWild = true, bettors = 0, minPoints = 0, bluffMix = 0.2,
+  } = {}) {
+    if (!Array.isArray(myCards) || myCards.length !== 3) throw new Error('equity: myCards must be 3 cards');
+    const mine = myCards.map(cardIndex);
+    if (new Set(mine).size !== 3) throw new Error('equity: duplicate cards');
+    const table = pointsTable(jokerWild !== false);
+    const myPoints = table[(mine[0] << 10) | (mine[1] << 5) | mine[2]];
+    const n = Math.max(0, Math.min(9, Math.floor(numOpponents) || 0)); // 29 cards = at most 9 hands
+    if (n === 0) return { win: 1, tie: 0 };
+    const ranged = minPoints > 0 ? Math.max(0, Math.min(n, Math.floor(bettors) || 0)) : 0;
+    const list = ranged ? handList(jokerWild !== false) : null;
+    const strongLimit = ranged ? list.atLeast[Math.min(35, Math.floor(minPoints))] || list.masks.length : 0;
+    const myMask = (1 << mine[0]) | (1 << mine[1]) | (1 << mine[2]);
+
+    const rest = new Uint8Array(29);
+    for (let i = 0, k = 0; i < 32; i++) if (!mine.includes(i)) rest[k++] = i;
+    let size = 29; // cards in `rest`
+    const iters = Math.max(1, Math.floor(iterations));
+    let wins = 0;
+    let ties = 0;
+    for (let it = 0; it < iters; it++) {
+      let best = 0;
+      if (ranged) {
+        // The bettors' hands come from their range (or, now and then, a bluff with any hand) ...
+        let used = myMask;
+        for (let o = 0; o < ranged; o++) {
+          const limit = rng() < bluffMix ? list.masks.length : strongLimit;
+          const h = drawFromList(list, limit, used, rng);
+          used |= list.masks[h];
+          if (list.pts[h] > best) best = list.pts[h];
+        }
+        // ... and the others get random cards from what is left.
+        size = 0;
+        for (let i = 0; i < 32; i++) if ((used & (1 << i)) === 0) rest[size++] = i;
+      }
+      let pos = 0;
+      // Partial Fisher–Yates: draw 3 cards per opponent from the remaining deck.
+      for (let o = ranged; o < n && best <= myPoints; o++) {
+        for (let d = 0; d < 3; d++) {
+          const j = pos + Math.floor(rng() * (size - pos));
+          const t = rest[pos]; rest[pos] = rest[j]; rest[j] = t;
+          pos++;
+        }
+        const pts = table[(rest[pos - 3] << 10) | (rest[pos - 2] << 5) | rest[pos - 1]];
+        if (pts > best) best = pts;
+      }
+      if (myPoints > best) wins++;
+      else if (myPoints === best) ties++;
+    }
+    return { win: wins / iters, tie: ties / iters };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Personalities
+  // ---------------------------------------------------------------------------
+
+  // tightness: how much equity it wants before putting chips in; aggression: bet/raise vs
+  // check/call; bluff: how often it bets or raises with a weak hand.
+  const PERSONALITIES = Object.freeze({
+    rock: Object.freeze({ tightness: 0.85, aggression: 0.35, bluff: 0.03 }),
+    tag: Object.freeze({ tightness: 0.65, aggression: 0.7, bluff: 0.08 }),
+    lag: Object.freeze({ tightness: 0.4, aggression: 0.8, bluff: 0.16 }),
+    fish: Object.freeze({ tightness: 0.2, aggression: 0.2, bluff: 0.05 }),
+    maniac: Object.freeze({ tightness: 0.1, aggression: 0.95, bluff: 0.3 }),
+  });
+
+  function resolvePersonality(p) {
+    if (typeof p === 'string' && PERSONALITIES[p]) return PERSONALITIES[p];
+    if (p && typeof p === 'object') {
+      const num = (v, d) => (typeof v === 'number' && isFinite(v) ? Math.max(0, Math.min(1, v)) : d);
+      return { tightness: num(p.tightness, 0.5), aggression: num(p.aggression, 0.5), bluff: num(p.bluff, 0.08) };
+    }
+    return PERSONALITIES.tag;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Betting decisions
+  // ---------------------------------------------------------------------------
+
+  /** Raise-to target: 2.5–3× the current bet or 50–100% of the pot, rounded to bb. */
+  function raiseTarget(state, me, L, rng) {
+    const bb = state.bb;
+    let target;
+    if (state.currentBet === 0) target = state.pot * (0.5 + 0.5 * rng());
+    else if (rng() < 0.5) target = state.currentBet * (2.5 + 0.5 * rng());
+    else target = state.currentBet + (state.pot + L.callAmount) * (0.5 + 0.5 * rng());
+    let to = Math.round(target / bb) * bb;
+    const minTo = Math.ceil(L.minRaiseTo / bb) * bb;
+    if (to < minTo) to = minTo;
+    // Committing most of the stack anyway: just move in.
+    if (to - me.roundBet > 0.65 * me.stack) to = L.maxRaiseTo;
+    return Math.min(to, L.maxRaiseTo);
+  }
+
+  /** Map an intent ('raise' | 'call' | 'check' | 'fold') to an action that is legal right now. */
+  function toLegal(intent, state, me, L, rng) {
+    if (intent === 'raise') {
+      if (L.canRaise) {
+        const to = raiseTarget(state, me, L, rng);
+        if (to >= L.maxRaiseTo && L.canAllIn) return { type: 'allin' };
+        if (to >= L.minRaiseTo && to <= L.maxRaiseTo) return { type: 'raise', amount: to };
+      }
+      // Can't make a full raise but may still shove for more than the call.
+      if (L.canAllIn && L.allInAmount > L.callAmount) return { type: 'allin' };
+      intent = 'call';
+    }
+    if (intent === 'call') {
+      if (L.canCall) return { type: 'call' };
+      if (L.canCheck) return { type: 'check' };
+      if (L.canAllIn) return { type: 'allin' };
+    }
+    if (L.canCheck) return { type: 'check' }; // never fold for free
+    return { type: 'fold' };
+  }
+
+  /**
+   * Facing a bet, the opponents who bet or raised don't hold random hands. Their range gets
+   * stronger with the size of the bet (relative to the pot before it) and with the number of
+   * raisers: a min bet barely narrows it (≥ 18 points), a pot-sized bet means ≥ 19, a big shove
+   * ≥ 25. About 1 in 5 bets is still read as a bluff with any hand.
+   */
+  function bettorRange(state, botId, live, L) {
+    if (L.toCall <= 0) return {};
+    const raisers = live.filter((p) => p.lastAction && (p.lastAction.type === 'raise' || p.lastAction.type === 'allin'));
+    const bettors = raisers.filter((p) => p.id !== botId).length;
+    if (!bettors) return {};
+    const ratio = L.toCall / Math.max(state.bb, state.pot - L.toCall);
+    const minPoints = Math.min(25, Math.round(17 + 1.5 * (raisers.length - 1) + 2 * Math.log2(1 + ratio)));
+    return { bettors, minPoints, bluffMix: 0.2 };
+  }
+
+  /** Choose an action for `botId`. Always returns an action that is legal in `state`. */
+  function decide(state, botId, personality, rng) {
+    rng = typeof rng === 'function' ? rng : Math.random;
+    const P = resolvePersonality(personality);
+    const L = E.legalActions(state, botId);
+    if (!L.isTurn) throw new Error(`SvaraAI.decide: it is not ${botId}'s turn`);
+    const me = state.players.find((p) => p.id === botId);
+    const jokerWild = state.jokerWild !== false;
+
+    // Public info only: how many opponents are still in, the pot and the bets.
+    const live = state.players.filter((p) => p.inHand && !p.folded);
+    const nOpp = live.length - 1;
+    const range = bettorRange(state, botId, live, L);
+    const eq = equity(me.cards, nOpp, { iterations: 1200, rng, jokerWild, ...range });
+    const points = E.scoreHand(me.cards, { jokerWild }).points;
+    const monster = points >= 33;
+
+    // A tie means a svara, where we keep a stake in the pot: count it as about half a win.
+    const strength = eq.win + eq.tie * 0.5 + (rng() - 0.5) * 0.1;
+    const fair = 1 / (nOpp + 1);
+    const valueLine = fair + (1 - fair) * (0.22 + 0.25 * P.tightness - 0.15 * P.aggression);
+    const call = L.callAmount;
+    const potOdds = call > 0 ? call / (state.pot + call) : 0;
+
+    let intent;
+    if (L.canCheck) {
+      if (strength >= valueLine) {
+        const edge = strength - valueLine; // the stronger, the more often it bets
+        if (monster && rng() < 0.3 + 0.2 * (1 - P.aggression)) intent = 'check'; // slow-play
+        else intent = rng() < 0.45 + 0.4 * P.aggression + edge ? 'raise' : 'check';
+      } else if (rng() < P.bluff * (nOpp <= 2 ? 1.2 : 0.6)) {
+        intent = 'raise'; // bluff
+      } else {
+        intent = 'check';
+      }
+    } else {
+      const need = potOdds * (0.8 + 0.6 * P.tightness);
+      const committedShare = me.committed / Math.max(1, me.committed + me.stack);
+      const canPush = L.canRaise || (L.canAllIn && L.allInAmount > call);
+      if (strength >= valueLine + 0.05 && canPush) {
+        const edge = strength - valueLine - 0.05;
+        if (monster && rng() < 0.35) intent = 'call'; // slow-play: just call
+        else intent = rng() < 0.2 + 0.45 * P.aggression + edge ? 'raise' : 'call';
+      } else if (strength >= need || (committedShare > 0.5 && strength >= need * 0.6)) {
+        intent = 'call';
+      } else if (L.canRaise && call <= state.pot * 0.5 && rng() < P.bluff * 0.4) {
+        intent = 'raise'; // re-raise bluff
+      } else if (call <= me.stack * 0.15 && rng() < (1 - P.tightness) * 0.12) {
+        intent = 'call'; // loose call now and then
+      } else {
+        intent = 'fold';
+      }
+    }
+    return toLegal(intent, state, me, L, rng);
+  }
+
+  /**
+   * Svara offer: join only if the cost is at most 40% of the stack; otherwise weigh the expected
+   * share of the pot (svaraPot / (participants + 1)) against the cost, with personality and noise.
+   */
+  function decideSvaraJoin(state, botId, personality, rng) {
+    rng = typeof rng === 'function' ? rng : Math.random;
+    if (state.phase !== 'svara-offer' || !state.pendingSvaraDecisions.includes(botId)) return false;
+    const me = state.players.find((p) => p.id === botId);
+    const cost = state.svaraJoinCost;
+    if (!me || cost <= 0 || cost > me.stack || cost > 0.4 * me.stack) return false;
+    const P = resolvePersonality(personality);
+    const share = state.svaraPot / (state.svaraParticipants.length + 1);
+    const ratio = share / cost;
+    let p = 0.1 + (ratio - 0.5) * 0.9 + (P.aggression - 0.5) * 0.3 - (P.tightness - 0.5) * 0.3 + P.bluff * 0.2;
+    p = Math.max(0.02, Math.min(0.9, p));
+    return rng() < p;
+  }
+
+  return { equity, decide, decideSvaraJoin, PERSONALITIES };
+});
+</script>
+<script>
+/*
+ * Свара — AI Арена: the UI. Screens (Home → Stakes → Table), the event-driven table renderer,
+ * the single game loop that drives the bots, persistence and the debug hook.
+ * Needs SvaraEngine (engine.js) and SvaraAI (ai.js), loaded before this classic script.
+ *
+ * How the table works: every engine call goes through step(), which takes a snapshot of the
+ * state *before* the call and then animates the returned events one by one. The screen is
+ * driven by a small view model (T.view) that is updated from the events only, because a single
+ * call can run far ahead (a svara replay or even a whole hand can resolve inside one call).
+ * After each step the view is checked against the engine state.
+ */
+(function () {
+  'use strict';
+
+  const E = window.SvaraEngine;
+  const AI = window.SvaraAI;
+  if (!E || !AI) throw new Error('Свара: engine.js and ai.js must be loaded before app.js');
+
+  // ---------------------------------------------------------------------------------------------
+  // Constants
+  // ---------------------------------------------------------------------------------------------
+
+  const STORAGE_KEY = 'svara.v1';
+  const START_BANKROLL = 5000;
+  const FREE_CHIPS = 1000;
+  const HUMAN_ID = 'me';
+  const HUMAN_NAME = 'Ти';
+  const HUMAN_AVATAR = '🧑';
+  const SEATS = 6; // seat 0 = you (bottom), seats 1..5 = the opponent row, left to right (clockwise)
+
+  // 8 stops of the stakes slider; buy-in range = 20×bb … 100×bb
+  const STAKES = [[1, 2], [5, 10], [25, 50], [50, 100], [250, 500], [1000, 2000], [5000, 10000], [25000, 50000]]
+    .map(([ante, bb]) => ({ ante, bb, minBuyIn: 20 * bb, maxBuyIn: 100 * bb }));
+
+  // Bot pool: Bulgarian names, emoji avatars, a personality each and a fixed fictional weekly XP.
+  const BOT_POOL = [
+    { key: 'iva', name: 'Ива', avatar: '🐭', personality: 'tag', xp: 2215 },
+    { key: 'mitko', name: 'Митко', avatar: '😆', personality: 'lag', xp: 6264 },
+    { key: 'gosho', name: 'Гошо', avatar: '🐼', personality: 'rock', xp: 1760 },
+    { key: 'pesho', name: 'Пешо', avatar: '🧔', personality: 'fish', xp: 240 },
+    { key: 'sasho', name: 'Сашо', avatar: '😎', personality: 'maniac', xp: 1204 },
+    { key: 'neli', name: 'Нели', avatar: '👩', personality: 'tag', xp: 8350 },
+    { key: 'bobo', name: 'Бобо', avatar: '🐻', personality: 'rock', xp: 880 },
+    { key: 'toni', name: 'Тони', avatar: '🦊', personality: 'lag', xp: 2940 },
+    { key: 'desi', name: 'Деси', avatar: '🐱', personality: 'fish', xp: 3518 },
+    { key: 'krasi', name: 'Краси', avatar: '🤠', personality: 'lag', xp: 13600 },
+    { key: 'valyo', name: 'Вальо', avatar: '👨‍🦲', personality: 'rock', xp: 96 },
+    { key: 'mimi', name: 'Мими', avatar: '👵', personality: 'fish', xp: 512 },
+  ];
+
+  // Text-presentation suits (U+FE0E) so ♥♦ never turn into emoji.
+  const SUIT = { s: '♠︎', h: '♥︎', d: '♦︎', c: '♣︎' };
+  const RED = { h: true, d: true };
+  const MEDALS = ['🥇', '🥈', '🥉'];
+
+  // ---------------------------------------------------------------------------------------------
+  // Formatting
+  // ---------------------------------------------------------------------------------------------
+
+  const NNBSP = ' '; // bg-BG groups thousands with a narrow no-break space: 5 000
+
+  function fmt(n) {
+    const v = Math.round(n || 0);
+    const s = String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, NNBSP);
+    return v < 0 ? '−' + s : s;
+  }
+
+  /** 1000 → 1K, 12500 → 12,5K, 1000000 → 1M (as in the reference). */
+  function fmtShort(n) {
+    const one = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
+    if (n >= 1e6) return one(n / 1e6) + 'M';
+    if (n >= 1e3) return one(n / 1e3) + 'K';
+    return String(n);
+  }
+
+  /** Amounts in bubbles and buttons: exact up to 9 999, short above. */
+  const fmtAmt = (n) => (n >= 10000 ? fmtShort(n) : fmt(n));
+
+  /** Millions with up to two decimals, rounded down so it never shows more than there is: 1,07M. */
+  const fmtMillions = (n) => String(Math.floor(n / 1e4) / 100).replace('.', ',') + 'M';
+  /** Seat stacks sit in narrow columns: exact below 1 000 000, then 1,07M. */
+  const fmtSeatStack = (n) => (n >= 1e6 ? fmtMillions(n) : fmt(n));
+  /** The info-box stack and the home bankroll have room for 7 digits: 9 999 999, then 12,34M. */
+  const fmtWide = (n) => (n >= 1e7 ? fmtMillions(n) : fmt(n));
+  const pct = (x) => `${Math.round(x * 100)}%`;
+
+  // ---------------------------------------------------------------------------------------------
+  // Motion helpers (every duration is multiplied by SPEED; reduced motion skips movement)
+  // ---------------------------------------------------------------------------------------------
+
+  let SPEED = 1;
+  const mqReduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const reduced = () => !!(mqReduce && mqReduce.matches);
+  const dur = (ms) => Math.max(0, ms * SPEED);
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  /** Always yields to the event loop (a macrotask), even at speed 0. */
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, dur(ms)));
+  }
+
+  function settle(animation, ms) {
+    return new Promise((resolve) => {
+      const t = setTimeout(resolve, ms + 150); // hidden tabs may never finish an animation
+      animation.finished.then(() => { clearTimeout(t); resolve(); }, () => { clearTimeout(t); resolve(); });
+    });
+  }
+
+  /**
+   * Web Animations wrapper. Elements always hold their final state in CSS; animations only show
+   * the way there, so skipping one (tiny speed, no WAAPI) is always safe.
+   */
+  function anim(node, frames, opts = {}) {
+    if (reduced()) {
+      // Reduced motion: nothing moves or scales; what is left of an animation is a short fade.
+      frames = frames.map(({ transform, ...rest }) => rest);
+      if (!frames.some((f) => 'opacity' in f)) return Promise.resolve();
+      opts = { ...opts, duration: Math.min(opts.duration || 0, 120) };
+    }
+    const d = dur(opts.duration || 0);
+    const delay = dur(opts.delay || 0);
+    if (!node || typeof node.animate !== 'function' || d < 1) return Promise.resolve();
+    let a;
+    try {
+      a = node.animate(frames, { duration: d, delay, easing: opts.easing || 'ease-out', fill: opts.fill || 'none' });
+    } catch (e) {
+      return Promise.resolve();
+    }
+    return settle(a, d + delay);
+  }
+
+  /** Card flip: squeeze to the edge (darkening a little), repaint, open up again. */
+  async function flip(node, paint, delay = 0) {
+    if (reduced() || dur(250) < 2 || typeof node.animate !== 'function') {
+      paint();
+      if (!reduced()) return;
+      await anim(node, [{ opacity: 0 }, { opacity: 1 }], { duration: 120 });
+      return;
+    }
+    const a1 = node.animate(
+      [{ transform: 'scaleX(1)', filter: 'brightness(1)' }, { transform: 'scaleX(0)', filter: 'brightness(.75)' }],
+      { duration: dur(115), delay: dur(delay), easing: 'ease-in', fill: 'forwards' });
+    await settle(a1, dur(115 + delay));
+    paint();
+    const a2 = node.animate(
+      [{ transform: 'scaleX(0)', filter: 'brightness(.75)' }, { transform: 'scaleX(1)', filter: 'brightness(1)' }],
+      { duration: dur(135), easing: 'ease-out' });
+    a1.cancel();
+    await settle(a2, dur(135));
+  }
+
+  // Animated counters: ease-out, integers formatted on every frame, optional green/coral tone.
+  const countJobs = new Map();
+  const easeCubic = (k) => 1 - Math.pow(1 - k, 3);
+  const easeExpo = (k) => (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k));
+
+  // A node can carry its own number format (node._fmt), e.g. the short seat stacks.
+  function setNum(node, v, format) {
+    if (!node) return;
+    format = format || node._fmt || fmt;
+    node._v = v;
+    node.textContent = format(v);
+  }
+
+  function stopCount(node) {
+    const job = countJobs.get(node);
+    if (job) job.stop();
+  }
+
+  function countTo(node, to, ms = 500, opts = {}) {
+    if (!node) return Promise.resolve();
+    const format = opts.format || node._fmt || fmt;
+    stopCount(node);
+    const from = typeof node._v === 'number' ? node._v : to;
+    const d = reduced() ? 0 : dur(ms);
+    node.classList.remove('up', 'down');
+    if (from === to || d < 16) {
+      setNum(node, to, format);
+      return Promise.resolve();
+    }
+    const tone = opts.tone ? (to > from ? 'up' : 'down') : null;
+    if (tone) node.classList.add(tone);
+    const ease = opts.ease || easeCubic;
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      let raf = 0;
+      let fallback = 0;
+      const job = {
+        stop() {
+          cancelAnimationFrame(raf);
+          clearTimeout(fallback);
+          countJobs.delete(node);
+          setNum(node, to, format);
+          resolve();
+        },
+      };
+      const end = () => {
+        job.stop();
+        if (tone) setTimeout(() => { if (!countJobs.has(node)) node.classList.remove(tone); }, dur(opts.hold == null ? 400 : opts.hold));
+      };
+      const tick = (now) => {
+        const k = Math.min(1, (now - t0) / d);
+        setNum(node, Math.round(from + (to - from) * ease(k)), format);
+        if (k >= 1) end();
+        else raf = requestAnimationFrame(tick);
+      };
+      fallback = setTimeout(end, d + 200);
+      countJobs.set(node, job);
+      raf = requestAnimationFrame(tick);
+    });
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Profile & persistence
+  // ---------------------------------------------------------------------------------------------
+
+  const P = { bankroll: START_BANKROLL, xp: 0, handsPlayed: 0, handsWon: 0, biggestPot: 0 };
+
+  function sanitizeProfile(d) {
+    const int = (v, def) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : def);
+    const src = d && typeof d === 'object' ? d : {};
+    return {
+      bankroll: int(src.bankroll, START_BANKROLL),
+      xp: int(src.xp, 0),
+      handsPlayed: int(src.handsPlayed, 0),
+      handsWon: int(src.handsWon, 0),
+      biggestPot: int(src.biggestPot, 0),
+    };
+  }
+
+  function loadStored() {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      return raw ? sanitizeProfile(JSON.parse(raw)) : null;
+    } catch (e) {
+      return null; // storage blocked or corrupt: play without it
+    }
+  }
+
+  /** The human's chips at the table (committed chips of a running hand are not included). */
+  function tableStack() {
+    if (!T.game) return 0;
+    try {
+      const me = T.game.getState().players.find((p) => p.id === HUMAN_ID);
+      return me ? me.stack : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  /** What is stored and what a hot reload keeps: the profile with the table stack returned. */
+  function profileSnapshot() {
+    return {
+      bankroll: P.bankroll + tableStack(),
+      xp: P.xp, handsPlayed: P.handsPlayed, handsWon: P.handsWon, biggestPot: P.biggestPot,
+    };
+  }
+
+  function saveProfile() {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profileSnapshot()));
+    } catch (e) {
+      /* storage unavailable: the game keeps working in memory */
+    }
+  }
+
+  function levelInfo(xp) {
+    const level = Math.floor(Math.sqrt(xp / 20));
+    const lo = 20 * level * level;
+    const hi = 20 * (level + 1) * (level + 1);
+    return { level, progress: (xp - lo) / (hi - lo) };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // DOM
+  // ---------------------------------------------------------------------------------------------
+
+  const $ = (id) => document.getElementById(id);
+  const el = {};
+  const screens = {};
+  const sheets = {};
+  let screenName = 'home';
+
+  function div(cls, text) {
+    const d = document.createElement('div');
+    if (cls) d.className = cls;
+    if (text != null) d.textContent = text;
+    return d;
+  }
+
+  let toastTimer = 0;
+  function hideToast() {
+    clearTimeout(toastTimer);
+    el.toast.classList.remove('show');
+  }
+  function toast(msg) {
+    el.toast.textContent = msg;
+    const onTable = screenName === 'table';
+    el.toast.classList.toggle('on-table', onTable);
+    // On the table it sits in the empty band between the opponents and the deck (the stacked deck
+    // layers reach 4 px above its top), clear of avatars, labels and bets.
+    el.toast.style.top = '';
+    const opps = onTable && rectOf(el.opps);
+    const deck = onTable && rectOf(el.deckTop);
+    if (opps && deck) {
+      const top = (opps.bottom + deck.top - 4 - el.toast.offsetHeight) / 2;
+      el.toast.style.top = `${Math.round(Math.max(opps.bottom + 4, top))}px`;
+    }
+    el.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.toast.classList.remove('show'), 1900);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Sheets (leave, raise, svara offer, busted): one at a time; the leave sheet defers the others
+  // ---------------------------------------------------------------------------------------------
+
+  let openName = null;
+  let deferredSheet = null;
+  let focusBefore = null;
+
+  function openSheet(name, setup) {
+    if (openName === 'leave' && name !== 'leave') {
+      deferredSheet = { name, setup }; // e.g. the svara offer arrives while "Сигурен ли си?" is up
+      return;
+    }
+    if (openName && openName !== name) hideSheetNow(openName);
+    else if (!openName) focusBefore = document.activeElement;
+    if (setup) setup();
+    const s = sheets[name];
+    el.sheetLayer.hidden = false;
+    s.hidden = false;
+    void s.offsetHeight; // start the slide from off-screen
+    el.sheetLayer.classList.add('open');
+    s.classList.add('open');
+    openName = name;
+    const first = s.querySelector('button:not(:disabled), input');
+    if (first) setTimeout(() => { if (openName === name) first.focus({ preventScroll: true }); }, dur(60));
+  }
+
+  function hideSheetNow(name) {
+    const s = sheets[name];
+    s.classList.remove('open');
+    s.hidden = true;
+    if (openName === name) openName = null;
+  }
+
+  function closeSheet(name) {
+    if (openName !== name) return;
+    const s = sheets[name];
+    openName = null;
+    s.classList.remove('open');
+    el.sheetLayer.classList.remove('open');
+    setTimeout(() => {
+      if (openName !== name) s.hidden = true;
+      if (!openName) el.sheetLayer.hidden = true;
+    }, dur(150));
+    if (focusBefore && document.contains(focusBefore) && !deferredSheet) {
+      try { focusBefore.focus({ preventScroll: true }); } catch (e) { /* not focusable any more */ }
+    }
+    focusBefore = null;
+    if (name === 'leave' && deferredSheet) {
+      const d = deferredSheet;
+      deferredSheet = null;
+      // reopen only if the loop is still waiting for that answer (not after leaving the table)
+      setTimeout(() => { if (T.game && T.waiting && T.waiting.kind === d.name) openSheet(d.name, d.setup); }, dur(160));
+    }
+  }
+
+  function closeAllSheets() {
+    deferredSheet = null;
+    for (const name of Object.keys(sheets)) {
+      sheets[name].classList.remove('open');
+      sheets[name].hidden = true;
+    }
+    openName = null;
+    el.sheetLayer.classList.remove('open');
+    el.sheetLayer.hidden = true;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Home
+  // ---------------------------------------------------------------------------------------------
+
+  function renderHome(updateBankroll) {
+    if (updateBankroll) setNum(el.homeBankroll, P.bankroll);
+    el.homeXp.textContent = fmt(P.xp);
+    const lv = levelInfo(P.xp);
+    el.levelValue.textContent = String(lv.level);
+    el.levelArc.style.strokeDasharray = `${(Math.max(0.06, lv.progress) * 100.5).toFixed(1)} 101`;
+    el.freeChips.hidden = P.bankroll >= STAKES[0].minBuyIn;
+    renderLeaderboard();
+  }
+
+  function renderLeaderboard() {
+    const rows = BOT_POOL.map((b) => ({ name: b.name, avatar: b.avatar, xp: b.xp }))
+      .concat({ name: HUMAN_NAME, avatar: HUMAN_AVATAR, xp: P.xp, me: true })
+      .sort((a, b) => b.xp - a.xp || (a.me ? -1 : b.me ? 1 : 0));
+    const items = rows.map((r, i) => {
+      const li = document.createElement('li');
+      if (r.me) { li.className = 'me'; li.id = 'lb-me'; }
+      const rank = i < 3 ? div('lb-medal', MEDALS[i]) : div('lb-rank num', String(i + 1));
+      const text = div('lb-text');
+      text.append(div('lb-name', r.name), div('lb-xp num', `${fmt(r.xp)} XP`));
+      li.append(rank, div('lb-avatar', r.avatar), text);
+      return li;
+    });
+    el.leaderboard.replaceChildren(...items);
+  }
+
+  /** Mode carousel: the centered card is full size, its neighbours shrink to 0.9. */
+  let modeRaf = 0;
+  function updateModeScale() {
+    modeRaf = 0;
+    const box = el.modes.getBoundingClientRect();
+    const cx = box.left + box.width / 2;
+    for (const card of el.modes.children) {
+      const r = card.getBoundingClientRect();
+      const w = card.offsetWidth || 1;
+      const t = Math.min(1, Math.max(0, (Math.abs(r.left + r.width / 2 - cx) - 20) / w));
+      card.style.setProperty('--mode-scale', (1 - 0.1 * t).toFixed(3));
+    }
+  }
+
+  function showOnly(name) {
+    for (const [n, s] of Object.entries(screens)) s.hidden = n !== name;
+  }
+
+  async function goStakes() {
+    if (screenName !== 'home') return;
+    screenName = 'stakes';
+    hideToast();
+    stakeIdx = defaultStake();
+    renderStakes();
+    setNum(el.stakesBankroll, P.bankroll);
+    screens.stakes.hidden = false;
+    const frames = reduced() ? [{ opacity: 0 }, { opacity: 1 }] : [{ transform: 'translateY(100%)' }, { transform: 'none' }];
+    await anim(screens.stakes, frames, { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    if (screenName === 'stakes') {
+      screens.home.hidden = true;
+      el.stakesSlider.focus({ preventScroll: true });
+    }
+  }
+
+  async function backHome() {
+    if (screenName !== 'stakes') return;
+    screenName = 'home';
+    hideToast();
+    screens.home.hidden = false;
+    renderHome(true);
+    const frames = reduced() ? [{ opacity: 1 }, { opacity: 0 }] : [{ transform: 'none' }, { transform: 'translateY(100%)' }];
+    await anim(screens.stakes, frames, { duration: 200, easing: 'ease-in' });
+    if (screenName === 'home') screens.stakes.hidden = true;
+  }
+
+  async function homeFromTable() {
+    screenName = 'home';
+    hideToast();
+    screens.home.hidden = false;
+    screens.stakes.hidden = true;
+    renderHome(false); // keep the old number: it counts to the new bankroll below
+    el.homeScroll.scrollTop = 0;
+    await anim(screens.table, [{ opacity: 1 }, { opacity: 0 }], { duration: 260 });
+    if (screenName !== 'home') return;
+    screens.table.hidden = true;
+    requestAnimationFrame(updateModeScale);
+    await sleep(500);
+    if (screenName !== 'home') return;
+    await countTo(el.homeBankroll, P.bankroll, 1100, { tone: true, ease: easeExpo, hold: 300 });
+    el.freeChips.hidden = P.bankroll >= STAKES[0].minBuyIn;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Stakes picker
+  // ---------------------------------------------------------------------------------------------
+
+  let stakeIdx = 1;
+  let lastStakeIdx = 1;
+  const affordable = (i) => P.bankroll >= STAKES[i].minBuyIn;
+
+  function defaultStake() {
+    if (affordable(lastStakeIdx)) return lastStakeIdx;
+    let best = 0;
+    for (let i = 0; i < STAKES.length; i++) if (affordable(i)) best = i;
+    return best;
+  }
+
+  function buildTicks() {
+    const cells = STAKES.map((s, i) => {
+      const cell = div('tick-cell');
+      cell.dataset.index = String(i);
+      const t = document.createElement('span');
+      t.className = 'tick';
+      cell.appendChild(t);
+      return cell;
+    });
+    el.stakesSlider.replaceChildren(...cells);
+  }
+
+  /** dragX: finger position while dragging, for the fish-eye growth of nearby ticks. */
+  function renderStakes(dragX) {
+    const st = STAKES[stakeIdx];
+    const ok = affordable(stakeIdx);
+    el.stakesValue.textContent = `${fmtShort(st.ante)} / ${fmtShort(st.bb)}`;
+    el.buyinValue.textContent = `${fmtShort(st.minBuyIn)} / ${fmtShort(st.maxBuyIn)}`;
+    el.stakesNote.textContent = `Анте ${fmtAmt(st.ante)} · Мин. залог ${fmtAmt(st.bb)}`;
+    screens.stakes.classList.toggle('unaffordable', !ok);
+    el.btnStart.disabled = !ok;
+    el.stakesSeat.textContent = ok
+      ? `Сядаш с ${fmt(Math.min(st.maxBuyIn, P.bankroll))} чипа`
+      : `Нужни са поне ${fmt(st.minBuyIn)} чипа · имаш ${fmt(P.bankroll)}`;
+    el.stakesSlider.setAttribute('aria-valuenow', String(stakeIdx));
+    el.stakesSlider.setAttribute('aria-valuetext', `${fmtShort(st.ante)} / ${fmtShort(st.bb)}`);
+    const OPAC = [1, 0.55, 0.45, 0.35, 0.25, 0.15];
+    const cells = el.stakesSlider.children;
+    for (let i = 0; i < cells.length; i++) {
+      const tick = cells[i].firstChild;
+      const d = Math.abs(i - stakeIdx);
+      tick.classList.toggle('active', i === stakeIdx);
+      tick.classList.toggle('no', !affordable(i));
+      tick.style.setProperty('--o', String(OPAC[Math.min(d, 5)]));
+      if (dragX != null && i !== stakeIdx) {
+        const r = cells[i].getBoundingClientRect();
+        const near = Math.max(0, 1 - Math.abs(r.left + r.width / 2 - dragX) / 100);
+        tick.style.height = `${Math.round(28 + 28 * near)}px`;
+      } else {
+        tick.style.height = '';
+      }
+    }
+  }
+
+  function pickStakeAt(x) {
+    const r = el.stakesSlider.getBoundingClientRect();
+    const i = Math.max(0, Math.min(STAKES.length - 1, Math.floor(((x - r.left) / r.width) * STAKES.length)));
+    stakeIdx = i;
+    lastStakeIdx = i;
+    renderStakes(x);
+  }
+
+  function bindStakes() {
+    const sl = el.stakesSlider;
+    let dragging = false;
+    sl.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      try { sl.setPointerCapture(e.pointerId); } catch (err) { /* synthetic events */ }
+      sl.classList.add('dragging');
+      pickStakeAt(e.clientX);
+    });
+    sl.addEventListener('pointermove', (e) => { if (dragging) pickStakeAt(e.clientX); });
+    const end = () => {
+      if (!dragging) return;
+      dragging = false;
+      sl.classList.remove('dragging');
+      renderStakes();
+    };
+    sl.addEventListener('pointerup', end);
+    sl.addEventListener('pointercancel', end);
+    sl.addEventListener('lostpointercapture', end);
+    sl.addEventListener('keydown', (e) => {
+      const keys = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, Home: -99, End: 99, PageDown: -1, PageUp: 1 };
+      if (!(e.key in keys)) return;
+      e.preventDefault();
+      stakeIdx = Math.max(0, Math.min(STAKES.length - 1, stakeIdx + keys[e.key]));
+      lastStakeIdx = stakeIdx;
+      renderStakes();
+    });
+    el.btnStart.addEventListener('click', startGame);
+    el.btnStakesBack.addEventListener('click', backHome);
+  }
+
+  async function startGame() {
+    if (screenName !== 'stakes') return;
+    const st = STAKES[stakeIdx];
+    if (!affordable(stakeIdx)) return;
+    const buyIn = Math.min(st.maxBuyIn, P.bankroll);
+    P.bankroll -= buyIn;
+    lastStakeIdx = stakeIdx;
+    createTable(stakeIdx, buyIn);
+    saveProfile();
+    screenName = 'table';
+    hideToast();
+    countTo(el.stakesBankroll, P.bankroll, 300, { tone: true });
+    screens.table.hidden = false;
+    fitLabels(); // measured while the table was hidden: everything read as 0 wide
+    await anim(screens.table, [{ opacity: 0 }, { opacity: 1 }], { duration: 180 });
+    if (screenName !== 'table') return;
+    screens.stakes.hidden = true;
+    screens.home.hidden = true;
+    startLoop();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Table state
+  // ---------------------------------------------------------------------------------------------
+
+  const T = {
+    game: null,
+    stake: null,
+    token: 0, // bumping it stops the running game loop
+    bots: {}, // playerId -> pool entry
+    seatOf: {}, // playerId -> seat
+    seatEls: [], // seat -> DOM refs (1..5)
+    view: null, // what the screen shows (see header comment)
+    hand: null, // per-hand bookkeeping for XP and the result
+    waiting: null, // { kind: 'act' | 'next' | 'svara' | 'busted', resolve } while the loop waits for you
+    actionMode: 'bet', // 'bet' | 'allin' | 'wait' | 'next'
+    sessionXp: 0,
+    svaras: 0,
+    rig: null, // debug: cards for the next deal
+    errors: 0,
+  };
+  let botSeq = 0;
+
+  function makeBotPlayer(b) {
+    const id = `bot-${b.key}-${++botSeq}`;
+    T.bots[id] = b;
+    return { id, name: b.name, avatar: b.avatar, stack: T.stake.maxBuyIn, personality: b.personality };
+  }
+
+  function shuffled(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  /** Fresh shuffled deck, unless the debug hook rigged the next deal. */
+  function deckProvider({ order }) {
+    const deck = E.shuffle(E.newDeck(), Math.random);
+    const rig = T.rig;
+    if (!rig) return deck;
+    T.rig = null;
+    const used = new Set();
+    for (const id of order) if (rig[id]) rig[id].forEach((c) => used.add(c));
+    const rest = deck.filter((c) => !used.has(c.id));
+    const out = [];
+    for (const id of order) {
+      if (rig[id]) out.push(...rig[id]);
+      else out.push(rest.shift(), rest.shift(), rest.shift());
+    }
+    return out.concat(rest);
+  }
+
+  function createTable(idx, buyIn) {
+    T.stake = STAKES[idx];
+    T.bots = {};
+    const players = [{ id: HUMAN_ID, name: HUMAN_NAME, avatar: HUMAN_AVATAR, stack: buyIn, isHuman: true }];
+    shuffled(BOT_POOL).slice(0, SEATS - 1).forEach((b) => players.push(makeBotPlayer(b)));
+    T.game = E.createGame({
+      players, ante: T.stake.ante, bb: T.stake.bb,
+      dealerIndex: Math.floor(Math.random() * SEATS), deckProvider,
+    });
+    T.sessionXp = 0;
+    T.svaras = 0;
+    T.hand = null;
+    T.waiting = null;
+    T.errors = 0;
+    el.table.dataset.svaras = '0';
+    el.table.dataset.hand = '0';
+    el.table.dataset.turn = '0';
+    el.tableXp.classList.remove('show');
+    el.tableStakes.textContent = `${fmtShort(T.stake.ante)} / ${fmtShort(T.stake.bb)}`;
+    el.infoBox.classList.remove('page-b');
+    const s = T.game.getState();
+    T.view = freshView(s);
+    buildSeats();
+    renderRoster(s.players);
+    resetTableVisuals();
+    setDealer(s.dealerIndex);
+    T.actionMode = 'bet';
+    refreshActions();
+    setTimeout(() => { try { AI.equity(['Ah', 'Kh', 'Qh'], 1, { iterations: 1 }); } catch (e) { /* warm-up only */ } }, 0);
+  }
+
+  function freshView(s) {
+    const V = { pot: 0, players: {}, svara: null };
+    for (const p of s.players) {
+      V.players[p.id] = { stack: p.stack, bet: 0, folded: false, allIn: false, inHand: p.stack > 0, cards: null, committed: 0 };
+    }
+    return V;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Table rendering
+  // ---------------------------------------------------------------------------------------------
+
+  function buildSeats() {
+    T.seatEls = [];
+    const nodes = [];
+    for (let seat = 1; seat < SEATS; seat++) {
+      const root = div('seat');
+      root.id = `seat-${seat}`;
+      root.dataset.seat = String(seat);
+      root.dataset.testid = `seat-${seat}`;
+      root.innerHTML =
+        '<div class="seat-marker"></div>' +
+        '<div class="seat-body"><div class="seat-avatar"><span class="emoji"></span><span class="dealer" hidden>D</span></div>' +
+        '<div class="seat-name"></div><div class="seat-stack num"></div></div>' +
+        '<div class="seat-label"></div><div class="seat-cards"></div>' +
+        '<div class="seat-bet"><span class="bubble num" hidden></span></div>';
+      T.seatEls[seat] = {
+        root,
+        avatar: root.querySelector('.emoji'),
+        dealer: root.querySelector('.dealer'),
+        name: root.querySelector('.seat-name'),
+        stack: Object.assign(root.querySelector('.seat-stack'), { _fmt: fmtSeatStack }),
+        label: root.querySelector('.seat-label'),
+        cards: root.querySelector('.seat-cards'),
+        bubble: root.querySelector('.bubble'),
+        labelTimer: 0,
+      };
+      nodes.push(root);
+    }
+    el.opps.replaceChildren(...nodes);
+  }
+
+  const seatEl = (id) => T.seatEls[T.seatOf[id]] || null;
+  const stackEl = (id) => (id === HUMAN_ID ? el.infoStack : seatEl(id) && seatEl(id).stack);
+  const bubbleEl = (id) => (id === HUMAN_ID ? el.heroBubble : seatEl(id) && seatEl(id).bubble);
+
+  /** Names, avatars and stacks; a bot that just sat down pops in. */
+  function renderRoster(players) {
+    const bySeat = {};
+    for (const p of players) {
+      bySeat[p.seat] = p;
+      T.seatOf[p.id] = p.seat;
+    }
+    for (let seat = 1; seat < SEATS; seat++) {
+      const se = T.seatEls[seat];
+      const p = bySeat[seat];
+      se.root.classList.toggle('empty', !p);
+      if (!p) { delete se.root.dataset.playerId; continue; }
+      const fresh = se.root.dataset.playerId && se.root.dataset.playerId !== p.id;
+      se.root.dataset.playerId = p.id;
+      se.root.setAttribute('aria-label', p.name);
+      se.avatar.textContent = p.avatar;
+      se.name.textContent = p.name;
+      stopCount(se.stack);
+      setNum(se.stack, p.stack);
+      if (fresh) anim(se.root, [{ opacity: 0, transform: 'scale(.8)' }, { opacity: 1, transform: 'none' }], { duration: 300 });
+    }
+    const me = players.find((p) => p.id === HUMAN_ID);
+    el.infoAvatar.textContent = HUMAN_AVATAR;
+    stopCount(el.infoStack);
+    setNum(el.infoStack, me ? me.stack : 0);
+  }
+
+  function resetTableVisuals() {
+    for (let seat = 1; seat < SEATS; seat++) {
+      const se = T.seatEls[seat];
+      if (!se) continue;
+      clearTimeout(se.labelTimer);
+      se.root.classList.remove('folded', 'out', 'won', 'lost', 'labeled', 'thinking');
+      se.cards.replaceChildren();
+      se.bubble.hidden = true;
+    }
+    el.hand.replaceChildren();
+    el.heroBubble.hidden = true;
+    el.pill.hidden = true;
+    el.banner.hidden = true;
+    el.middle.classList.remove('svara');
+    el.potLabel.textContent = 'Банка';
+    stopCount(el.potAmount);
+    setNum(el.potAmount, 0);
+    el.table.dataset.result = '';
+    el.infoHand.textContent = '';
+    el.eqWin.textContent = '–';
+    el.eqTie.textContent = '–';
+  }
+
+  function setDealer(seat) {
+    for (let s = 1; s < SEATS; s++) {
+      const se = T.seatEls[s];
+      if (!se) continue;
+      const on = s === seat;
+      if (on && se.dealer.hidden) anim(se.dealer, [{ transform: 'scale(.4)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 160 });
+      se.dealer.hidden = !on;
+    }
+    el.heroDealer.hidden = seat !== T.seatOf[HUMAN_ID];
+  }
+
+  function showBubble(id, amount) {
+    const b = bubbleEl(id);
+    if (!b) return;
+    const wasHidden = b.hidden;
+    b.textContent = fmtAmt(amount);
+    b.hidden = false;
+    if (wasHidden) anim(b, [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'none' }], { duration: 140 });
+  }
+
+  function hideBubble(id) {
+    const b = bubbleEl(id);
+    if (b) b.hidden = true;
+  }
+
+  function showLabel(id, text, ms = 650) {
+    const se = seatEl(id);
+    if (!se) return;
+    se.label.textContent = text;
+    se.root.classList.add('labeled');
+    clearTimeout(se.labelTimer);
+    se.labelTimer = setTimeout(() => se.root.classList.remove('labeled'), dur(ms));
+  }
+
+  function labelFor(a) {
+    switch (a.type) {
+      case 'fold': return 'Пас';
+      case 'check': return 'Чек';
+      case 'call': return 'Плаща';
+      case 'raise': return a.isBet ? 'Залага' : 'Вдига';
+      case 'allin': return 'Ва банк';
+      default: return '';
+    }
+  }
+
+  /** Paint a card face. kind: 'big' (your hand) or 'mini' (under an opponent). */
+  function paintFace(node, card, kind) {
+    const c = typeof card === 'string' ? E.parseCard(card) : card;
+    node.classList.remove('back');
+    node.classList.toggle('red', !!RED[c.suit]);
+    node.dataset.card = c.id;
+    node.setAttribute('aria-label', c.id);
+    const r = document.createElement('span');
+    r.className = 'r' + (c.rank === '10' ? ' ten' : '');
+    r.textContent = c.rank;
+    const s = document.createElement('span');
+    s.className = 's';
+    s.textContent = SUIT[c.suit];
+    node.replaceChildren(r, s);
+    if (kind === 'big' && E.isJoker(c, true)) {
+      const j = document.createElement('span');
+      j.className = 'jk';
+      j.title = 'Шпока';
+      j.textContent = '★';
+      node.appendChild(j);
+    }
+  }
+
+  function makeSlots(id) {
+    const nodes = [0, 1, 2].map((i) => {
+      const n = div(id === HUMAN_ID ? 'card back' : 'mini back');
+      if (id === HUMAN_ID) n.style.setProperty('--i', String(i));
+      n.style.opacity = '0';
+      return n;
+    });
+    if (id === HUMAN_ID) el.hand.replaceChildren(...nodes);
+    else if (seatEl(id)) seatEl(id).cards.replaceChildren(...nodes);
+    return nodes;
+  }
+
+  const heroCards = () => Array.from(el.hand.children);
+  const miniCards = (id) => (seatEl(id) ? Array.from(seatEl(id).cards.children) : []);
+
+  function setSeatState(id) {
+    const se = seatEl(id);
+    const v = T.view.players[id];
+    if (!se || !v) return;
+    se.root.classList.toggle('out', !v.inHand);
+    se.root.classList.toggle('folded', v.inHand && v.folded);
+  }
+
+  /** "21 точки" + win/svara odds against the opponents still in. */
+  function updateInfoBox() {
+    const v = T.view && T.view.players[HUMAN_ID];
+    const cards = v && v.inHand && v.cards;
+    el.infoHand.textContent = cards ? E.scoreHand(cards).label : '';
+    updateEquity();
+  }
+
+  function updateEquity() {
+    const v = T.view && T.view.players[HUMAN_ID];
+    if (!v || !v.inHand || !v.cards || v.folded) {
+      el.eqWin.textContent = '–';
+      el.eqTie.textContent = '–';
+      return;
+    }
+    const n = Object.entries(T.view.players).filter(([id, q]) => id !== HUMAN_ID && q.inHand && !q.folded).length;
+    const eq = AI.equity(v.cards, n, { iterations: 2000 });
+    el.eqWin.textContent = pct(eq.win);
+    el.eqTie.textContent = pct(eq.tie);
+  }
+
+  function showSessionXp() {
+    el.tableXpValue.textContent = `+${fmt(T.sessionXp)} XP`;
+    if (!el.tableXp.classList.contains('show')) el.tableXp.classList.add('show');
+    else anim(el.tableXp, [{ transform: 'translateY(-3px)' }, { transform: 'none' }], { duration: 220 });
+  }
+
+  // --- flights ---------------------------------------------------------------------------------
+
+  function rectOf(node) {
+    const r = node && node.getBoundingClientRect();
+    return r && r.width > 0 ? r : null;
+  }
+
+  function potRect() {
+    return rectOf(el.potAmount) || rectOf(el.deckTop) || rectOf(el.middle);
+  }
+
+  /**
+   * A card back flies from the deck to its slot, scaling from deck size to slot size. A tiny
+   * (opponent) card is built at deck size with the deck's back and shrinks on the way, so the deck
+   * never shows a blown-up, coarse-striped back; your cards are built at their own size.
+   */
+  function flyCard(from, target, delay, tiny) {
+    const to = rectOf(target);
+    if (!from || !to) return Promise.resolve();
+    const base = tiny ? from : to;
+    const f = div('fly fly-card');
+    f.style.width = `${base.width}px`;
+    f.style.height = `${base.height}px`;
+    f.style.borderRadius = tiny ? '18% / 13%' : getComputedStyle(target).borderRadius; // tiny: the deck's corner, scaling along
+    const at = (r) => `translate(${r.left}px, ${r.top}px) scale(${r.width / base.width}, ${r.height / base.height})`;
+    f.style.transform = at(to);
+    el.fx.appendChild(f);
+    return anim(f, [{ transform: at(from) }, { transform: at(to) }],
+      { duration: 220, delay, easing: 'cubic-bezier(.2,.7,.25,1)', fill: 'both' }).then(() => f.remove());
+  }
+
+  /** A bet bubble slides to the pot and shrinks away. */
+  function flyBubble(b, to) {
+    const r = rectOf(b);
+    if (!r || !to || reduced()) return Promise.resolve();
+    const f = b.cloneNode(true);
+    f.removeAttribute('id');
+    f.hidden = false;
+    f.classList.add('fly', 'fly-chip');
+    f.style.height = `${r.height}px`;
+    f.style.minWidth = `${r.width}px`;
+    el.fx.appendChild(f);
+    const x = to.left + to.width / 2 - r.width / 2;
+    const y = to.top + to.height / 2 - r.height / 2;
+    return anim(f, [
+      { transform: `translate(${r.left}px, ${r.top}px)`, opacity: 1 },
+      { transform: `translate(${x}px, ${y}px) scale(.5)`, opacity: 0 },
+    ], { duration: 220, easing: 'ease-in', fill: 'forwards' }).then(() => f.remove());
+  }
+
+  /** The pot (or a share of it) travels to a winner. */
+  function flyChip(from, target, amount) {
+    const to = rectOf(target);
+    if (!from || !to || reduced()) return Promise.resolve();
+    const f = div('bubble num fly fly-chip', fmtAmt(amount));
+    f.style.height = '24px';
+    el.fx.appendChild(f);
+    const w = f.offsetWidth || 40;
+    const x0 = from.left + from.width / 2 - w / 2;
+    const y0 = from.top + from.height / 2 - 12;
+    const x1 = to.left + to.width / 2 - w / 2;
+    const y1 = to.top + to.height / 2 - 12;
+    return anim(f, [
+      { transform: `translate(${x0}px, ${y0}px) scale(.9)`, opacity: 0 },
+      { transform: `translate(${x0}px, ${y0}px)`, opacity: 1, offset: 0.15 },
+      { transform: `translate(${x1}px, ${y1}px) scale(.7)`, opacity: 0.2 },
+    ], { duration: 450, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).then(() => f.remove());
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Event playback
+  // ---------------------------------------------------------------------------------------------
+
+  const alive = (token) => token === T.token && !!T.game;
+
+  /** Cards for a deal: a later showdown in the same batch is authoritative (see header). */
+  function dealSource(events, i) {
+    for (let j = i + 1; j < events.length; j++) {
+      const t = events[j].type;
+      if (t === 'showdown') return events[j].cards;
+      if (t === 'svara-start' || t === 'hand-start' || t === 'turn') break;
+    }
+    return null;
+  }
+
+  async function playEvents(events, pre, token) {
+    for (let i = 0; i < events.length; i++) {
+      if (!alive(token)) return;
+      const ev = events[i];
+      switch (ev.type) {
+        case 'hand-start':
+          playHandStart(ev, pre);
+          break;
+        case 'ante': {
+          const group = [ev];
+          while (events[i + 1] && events[i + 1].type === 'ante') group.push(events[++i]);
+          await playAntes(group, token);
+          break;
+        }
+        case 'deal': {
+          const group = [ev];
+          while (events[i + 1] && events[i + 1].type === 'deal') group.push(events[++i]);
+          await playDeal(group, dealSource(events, i), token);
+          break;
+        }
+        case 'turn':
+          refreshActions();
+          break;
+        case 'action':
+          await playAction(ev);
+          break;
+        case 'round-end':
+          await sweepBets(ev.pot, token);
+          break;
+        case 'showdown': {
+          const wins = [];
+          while (events[i + 1] && events[i + 1].type === 'win') wins.push(events[++i]);
+          const sv = events[i + 1] && events[i + 1].type === 'svara' ? events[i + 1] : null;
+          await playShowdown(ev, wins, sv, token);
+          break;
+        }
+        case 'win': {
+          const wins = [ev];
+          while (events[i + 1] && events[i + 1].type === 'win') wins.push(events[++i]);
+          await playWins(wins, null);
+          break;
+        }
+        case 'svara':
+          await playSvara(ev);
+          break;
+        case 'svara-join':
+        case 'svara-decline':
+          await playSvaraDecision(ev);
+          break;
+        case 'svara-start':
+          await playSvaraStart(ev, token);
+          break;
+        case 'hand-over':
+          playHandOver();
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  function playHandStart(ev, pre) {
+    T.hand = { number: ev.handNumber, humanDealt: false, humanPots: 0, humanWon: 0, result: '' };
+    T.view = freshView(pre);
+    T.seatOf = {};
+    renderRoster(pre.players);
+    resetTableVisuals();
+    for (const p of pre.players) if (p.id !== HUMAN_ID) setSeatState(p.id);
+    setDealer(ev.dealerIndex);
+    el.table.dataset.hand = String(ev.handNumber);
+    const me = T.view.players[HUMAN_ID];
+    T.actionMode = me && me.inHand ? 'bet' : 'wait';
+    refreshActions();
+  }
+
+  async function playAntes(group, token) {
+    let total = T.view.pot;
+    for (const ev of group) {
+      const v = T.view.players[ev.playerId];
+      v.stack -= ev.amount;
+      v.committed += ev.amount;
+      v.bet = ev.amount; // shown in the bubble until the sweep (antes are not part of roundBet)
+      if (ev.allIn) v.allIn = true;
+      total += ev.amount;
+      showBubble(ev.playerId, ev.amount);
+      countTo(stackEl(ev.playerId), v.stack, 450);
+    }
+    const me = T.view.players[HUMAN_ID];
+    if (me && me.inHand && me.allIn) { T.actionMode = 'allin'; refreshActions(); }
+    await sleep(520);
+    if (!alive(token)) return;
+    await sweepBets(total, token);
+  }
+
+  async function playDeal(group, src, token) {
+    const ids = group.map((e) => e.playerId);
+    const state = T.game.getState();
+    for (const id of ids) {
+      const v = T.view.players[id];
+      v.inHand = true;
+      if (id === HUMAN_ID) {
+        const mine = (src && src[HUMAN_ID]) || state.players.find((p) => p.id === HUMAN_ID).cards;
+        v.cards = mine.map((c) => E.parseCard(c.id));
+        T.hand.humanDealt = true;
+      }
+    }
+    const slots = {};
+    for (const id of ids) slots[id] = makeSlots(id);
+    const from = rectOf(el.deckTop);
+    const flights = [];
+    if (!reduced() && dur(220) >= 1 && from) {
+      let k = 0;
+      for (let round = 0; round < 3; round++) {
+        for (const id of ids) {
+          const target = slots[id][round];
+          flights.push(flyCard(from, target, 40 * k++, id !== HUMAN_ID).then(() => { target.style.opacity = ''; }));
+        }
+      }
+      await Promise.all(flights);
+    }
+    for (const id of ids) slots[id].forEach((n) => { n.style.opacity = ''; });
+    if (!alive(token)) return;
+    if (ids.includes(HUMAN_ID)) {
+      const v = T.view.players[HUMAN_ID];
+      await Promise.all(slots[HUMAN_ID].map((n, i) => flip(n, () => paintFace(n, v.cards[i], 'big'), 80 * i)));
+      updateInfoBox();
+      anim(el.infoHand, [{ opacity: 0 }, { opacity: 1 }], { duration: 160 });
+    } else {
+      updateEquity();
+    }
+  }
+
+  async function playAction(ev) {
+    const id = ev.playerId;
+    const a = ev.action;
+    const v = T.view.players[id];
+    v.stack = ev.stack;
+    v.bet = ev.roundBet;
+    v.committed += a.added;
+    if (a.type === 'fold') v.folded = true;
+    if (a.type === 'allin') v.allIn = true;
+    if (a.added > 0) showBubble(id, v.bet);
+    countTo(stackEl(id), v.stack, 500);
+    if (id === HUMAN_ID) {
+      if (a.type === 'fold') {
+        heroCards().forEach((c) => c.classList.add('dim'));
+        T.actionMode = 'wait';
+      } else if (v.allIn) {
+        T.actionMode = 'allin';
+      }
+      refreshActions();
+    } else {
+      showLabel(id, labelFor(a));
+      if (a.type === 'fold') {
+        setSeatState(id);
+        const minis = miniCards(id);
+        minis.forEach((m) => anim(m, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-6px)' }], { duration: 200, fill: 'forwards' }));
+        setTimeout(() => minis.forEach((m) => m.remove()), dur(220));
+      }
+    }
+    if (a.type === 'fold') updateEquity();
+    await sleep(id === HUMAN_ID ? 260 : 380);
+  }
+
+  /** Round end: every bubble slides into the pot, then the pot counts up. */
+  async function sweepBets(newPot, token) {
+    const to = potRect();
+    const flights = [];
+    for (const [id, v] of Object.entries(T.view.players)) {
+      const b = bubbleEl(id);
+      if (b && !b.hidden) flights.push(flyBubble(b, to));
+      hideBubble(id);
+      v.bet = 0;
+    }
+    T.view.pot = newPot;
+    await Promise.all(flights);
+    if (!alive(token)) return;
+    countTo(el.potAmount, newPot, 600);
+    await sleep(flights.length ? 300 : 0);
+  }
+
+  /** A win is a "real" win unless it only returns a player's own uncalled chips. */
+  function isRealWin(w, scores, best) {
+    const v = T.view.players[w.playerId];
+    return (scores[w.playerId] && scores[w.playerId].points === best) || w.amount > v.committed;
+  }
+
+  async function playShowdown(sd, wins, sv, token) {
+    T.hand.result = sv ? 'svara' : 'showdown';
+    // No more decisions in this deal. If a svara you play in follows, the hand isn't over for
+    // you: keep the idle bet row instead of announcing the next hand.
+    const mySvara = !!sv && sv.participants.includes(HUMAN_ID);
+    T.actionMode = !mySvara ? 'wait' : T.view.players[HUMAN_ID].stack > 0 ? 'bet' : 'allin';
+    refreshActions();
+    const ids = Object.keys(sd.cards);
+    const flips = [];
+    for (const id of ids) {
+      const v = T.view.players[id];
+      v.cards = sd.cards[id].map((c) => E.parseCard(c.id));
+      if (id === HUMAN_ID) continue;
+      let minis = miniCards(id);
+      if (minis.length !== 3) minis = makeSlots(id).map((m) => { m.style.opacity = ''; return m; });
+      minis.forEach((m, i) => flips.push(flip(m, () => paintFace(m, v.cards[i], 'mini'))));
+    }
+    await Promise.all(flips);
+    if (!alive(token)) return;
+    await sleep(700);
+    if (!alive(token)) return;
+
+    const best = Math.max(...ids.map((id) => sd.scores[id].points));
+    const winners = new Set(wins.filter((w) => isRealWin(w, sd.scores, best)).map((w) => w.playerId));
+    const tied = new Set(sv ? sv.participants : []);
+    const bright = new Set([...winners, ...tied]);
+    for (const id of ids) {
+      const used = new Set(sd.scores[id].usedCardIds);
+      const nodes = id === HUMAN_ID ? heroCards() : miniCards(id);
+      nodes.forEach((n) => n.classList.toggle('dim', !bright.has(id) || !used.has(n.dataset.card)));
+      const se = seatEl(id);
+      if (se) {
+        se.root.classList.toggle('won', winners.has(id));
+        se.root.classList.toggle('lost', !bright.has(id));
+      }
+    }
+    const top = [...bright].map((id) => sd.scores[id]).sort((a, b) => b.points - a.points)[0];
+    if (top) {
+      el.pill.textContent = top.label;
+      el.pill.hidden = false;
+      anim(el.pill, [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 160 });
+    }
+    el.table.dataset.result = T.hand.result;
+    await sleep(600);
+    if (!alive(token)) return;
+    if (wins.length) await playWins(wins, winners);
+  }
+
+  /** Pay pots: the pot counts down while each winner's stack counts up in green. */
+  async function playWins(wins, real) {
+    const from = potRect();
+    const jobs = [];
+    let pot = T.view.pot;
+    for (const w of wins) {
+      const v = T.view.players[w.playerId];
+      v.stack += w.amount;
+      pot -= w.amount;
+      const counts = real ? real.has(w.playerId) : true;
+      if (w.uncontested) T.hand.result = 'uncontested';
+      if (w.playerId === HUMAN_ID && counts) {
+        T.hand.humanPots += 1;
+        T.hand.humanWon += w.amount;
+      }
+      const se = seatEl(w.playerId);
+      if (se && counts) {
+        se.root.classList.add('won');
+        anim(se.avatar.parentNode, [{ transform: 'none' }, { transform: 'scale(1.12)' }, { transform: 'none' }], { duration: 420, delay: 300 });
+      }
+      jobs.push(flyChip(from, w.playerId === HUMAN_ID ? el.infoBox : stackEl(w.playerId), w.amount));
+      jobs.push(countTo(stackEl(w.playerId), v.stack, 1000, { tone: true }));
+    }
+    T.view.pot = pot;
+    jobs.push(countTo(el.potAmount, pot, 1000));
+    if (T.hand.result) el.table.dataset.result = T.hand.result;
+    await Promise.all(jobs);
+  }
+
+  async function playSvara(ev) {
+    T.svaras += 1;
+    el.table.dataset.svaras = String(T.svaras);
+    T.view.svara = { pot: ev.svaraPot, cost: ev.joinCost, participants: ev.participants.slice() };
+    el.svaraSub.textContent = `Банка ${fmt(ev.svaraPot)} · Влизане ${fmt(ev.joinCost)}`;
+    el.pill.hidden = true;
+    el.middle.classList.add('svara');
+    el.banner.hidden = false;
+    el.table.dataset.result = 'svara';
+    if (reduced()) {
+      await anim(el.banner, [{ opacity: 0 }, { opacity: 1 }], { duration: 120 });
+    } else {
+      await anim(el.banner, [
+        { transform: 'scale(.6)', opacity: 0 },
+        { transform: 'scale(1.08)', opacity: 1, offset: 0.7 },
+        { transform: 'scale(1)', opacity: 1 },
+      ], { duration: 300, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
+      await anim(el.banner, [
+        { transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' },
+        { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(-3px)' },
+        { transform: 'translateX(0)' },
+      ], { duration: 240, easing: 'linear' });
+    }
+    await sleep(ev.pending && ev.pending.length ? 700 : 1500);
+  }
+
+  async function playSvaraDecision(ev) {
+    const id = ev.playerId;
+    const v = T.view.players[id];
+    if (ev.type === 'svara-join') {
+      v.stack -= ev.paid;
+      T.view.pot += ev.paid;
+      if (T.view.svara) {
+        T.view.svara.pot += ev.paid;
+        T.view.svara.participants.push(id);
+        el.svaraSub.textContent = `Банка ${fmt(T.view.svara.pot)} · Влизане ${fmt(T.view.svara.cost)}`;
+      }
+      setNum(el.potAmount, T.view.pot);
+      countTo(stackEl(id), v.stack, 450);
+      if (id !== HUMAN_ID) showLabel(id, 'Влиза');
+    } else if (id !== HUMAN_ID) {
+      showLabel(id, 'Отказва');
+    }
+    await sleep(id === HUMAN_ID ? 200 : 420);
+  }
+
+  async function playSvaraStart(ev, token) {
+    const parts = new Set(ev.participants);
+    await anim(el.banner, [{ opacity: 1 }, { opacity: 0 }], { duration: 180 });
+    if (!alive(token)) return;
+    el.banner.hidden = true;
+    el.middle.classList.remove('svara');
+    el.pill.hidden = true;
+    el.table.dataset.result = '';
+    // the old cards are thrown in
+    const old = heroCards();
+    for (let s = 1; s < SEATS; s++) if (T.seatEls[s]) old.push(...T.seatEls[s].cards.children);
+    await Promise.all(old.map((n) => anim(n, [{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' })));
+    old.forEach((n) => n.remove());
+    if (!alive(token)) return;
+    for (const [id, v] of Object.entries(T.view.players)) {
+      v.inHand = parts.has(id);
+      v.folded = false;
+      v.bet = 0;
+      v.committed = 0;
+      v.cards = null;
+      v.allIn = v.inHand && v.stack === 0;
+      hideBubble(id);
+      const se = seatEl(id);
+      if (se) se.root.classList.remove('won', 'lost', 'labeled');
+      setSeatState(id);
+    }
+    T.view.pot = ev.pot;
+    T.view.svara = null;
+    el.potLabel.textContent = 'Свара';
+    stopCount(el.potAmount);
+    setNum(el.potAmount, ev.pot);
+    updateInfoBox();
+    const me = T.view.players[HUMAN_ID];
+    T.actionMode = !me || !me.inHand ? 'wait' : me.allIn ? 'allin' : 'bet';
+    refreshActions();
+    await sleep(250);
+  }
+
+  function playHandOver() {
+    const h = T.hand;
+    let gained = 0;
+    if (h.humanDealt) {
+      P.handsPlayed += 1;
+      gained += 1; // +1 XP per hand played
+    }
+    if (h.humanPots > 0) {
+      P.handsWon += 1;
+      gained += 5 * h.humanPots; // +5 XP per pot won
+      P.biggestPot = Math.max(P.biggestPot, h.humanWon);
+    }
+    P.xp += gained;
+    T.sessionXp += gained;
+    if (gained) showSessionXp();
+    el.table.dataset.result = h.result || 'uncontested';
+    const me = T.view.players[HUMAN_ID];
+    if (me && !me.folded && me.inHand && !h.humanPots) heroCards().forEach((c) => c.classList.add('dim'));
+    T.actionMode = 'wait';
+    refreshActions();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // View ↔ engine consistency
+  // ---------------------------------------------------------------------------------------------
+
+  /** Rebuild the numbers on screen from the engine state (after an error or a drift). */
+  function resyncView(s) {
+    if (!T.game) return;
+    const st = s || T.game.getState();
+    if (!T.view) T.view = freshView(st);
+    let bets = 0;
+    for (const p of st.players) {
+      const v = T.view.players[p.id] || (T.view.players[p.id] = { committed: 0, cards: null });
+      Object.assign(v, { stack: p.stack, bet: p.roundBet, folded: p.folded, allIn: p.allIn, inHand: p.inHand });
+      bets += p.roundBet;
+      T.seatOf[p.id] = p.seat;
+      stopCount(stackEl(p.id));
+      setNum(stackEl(p.id), p.stack);
+      if (p.roundBet > 0) showBubble(p.id, p.roundBet);
+      else hideBubble(p.id);
+      if (p.id !== HUMAN_ID) setSeatState(p.id);
+    }
+    T.view.pot = st.pot - bets;
+    stopCount(el.potAmount);
+    setNum(el.potAmount, T.view.pot);
+    const me = st.players.find((p) => p.id === HUMAN_ID);
+    if (st.phase === 'betting' && me) T.actionMode = !me.inHand || me.folded ? 'wait' : me.allIn ? 'allin' : 'bet';
+    else if (st.phase !== 'betting') T.actionMode = 'wait';
+    refreshActions();
+  }
+
+  function checkSync() {
+    const s = T.game.getState();
+    el.table.dataset.phase = s.phase;
+    let bets = 0;
+    const drift = [];
+    for (const p of s.players) {
+      const v = T.view.players[p.id];
+      bets += p.roundBet;
+      if (!v || v.stack !== p.stack || v.bet !== p.roundBet) drift.push(p.id);
+    }
+    if (T.view.pot !== s.pot - bets) drift.push('pot');
+    if (drift.length) {
+      console.warn('[svara] view drift, resyncing:', drift.join(', '));
+      resyncView(s);
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Action row
+  // ---------------------------------------------------------------------------------------------
+
+  function legal() {
+    if (!T.game) return null;
+    try {
+      return T.game.legalActions(HUMAN_ID);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setBtn(btn, { show = true, label, amount = '', enabled = false, illegal = false }) {
+    btn.hidden = !show;
+    if (!show) return;
+    if (label != null) btn.querySelector('.lbl').textContent = label;
+    const amt = btn.querySelector('.amt');
+    if (amt) amt.textContent = amount;
+    btn.disabled = !enabled;
+    btn.classList.toggle('illegal', illegal);
+  }
+
+  /** The bottom row: [Пас] [Чек|Плащам] [Залагам|Вдигам] [↑], [Пас] [Ва банк], or one wide button. */
+  function refreshActions() {
+    const w = T.waiting;
+    const myTurn = !!(w && w.kind === 'act');
+    el.table.classList.toggle('turn', myTurn);
+    el.table.dataset.turn = myTurn ? '1' : '0';
+    const b = el.btns;
+    const hideAll = () => Object.values(b).forEach((x) => { x.hidden = true; });
+    hideAll();
+    let layout = 'single';
+    const mode = T.actionMode;
+    if (mode === 'bet') {
+      const L = T.game && T.game.getState().phase === 'svara-offer' ? null : legal(); // no stale amounts
+      if (L && L.callIsAllIn) {
+        layout = 'allin-only';
+        setBtn(b.fold, { enabled: myTurn && L.canFold });
+        setBtn(b.allin, { label: 'Ва банк', amount: fmtAmt(L.allInAmount), enabled: myTurn && (L.canAllIn || L.canCall) });
+      } else {
+        layout = 'bet';
+        const toCall = L ? L.toCall : 0;
+        setBtn(b.fold, { enabled: myTurn && !!L && L.canFold });
+        setBtn(b.call, {
+          label: toCall > 0 ? 'Плащам' : 'Чек',
+          amount: toCall > 0 ? fmtAmt(L.callAmount) : '',
+          enabled: myTurn && !!L && (L.canCheck || L.canCall),
+        });
+        const short = !!L && L.maxRaiseTo < L.minRaiseTo && L.allInAmount > L.callAmount;
+        if (short) {
+          setBtn(b.raise, { label: 'Ва банк', amount: fmtAmt(L.allInAmount), enabled: myTurn && L.canAllIn, illegal: myTurn && !L.canAllIn });
+        } else {
+          setBtn(b.raise, {
+            label: !L || L.isBet ? 'Залагам' : 'Вдигам',
+            amount: L ? fmtAmt(L.minRaiseTo) : '',
+            enabled: myTurn && !!L && L.canRaise,
+            illegal: myTurn && !!L && !L.canRaise,
+          });
+        }
+        b.more.hidden = false;
+        b.more.disabled = !(myTurn && L && L.canRaise);
+        b.more.classList.toggle('illegal', myTurn && !!L && !L.canRaise);
+      }
+    } else if (mode === 'allin') {
+      setBtn(b.allin, { label: 'Ва банк', amount: '', enabled: false });
+    } else {
+      setBtn(b.next, { label: 'Следваща ръка', enabled: mode === 'next' && !!(w && w.kind === 'next') });
+    }
+    el.actions.dataset.mode = layout;
+    el.actions.dataset.state = mode;
+    el.actions.classList.toggle('ready', !!(w && w.kind === 'next'));
+    fitLabels();
+  }
+
+  /** "Плащам 1 000" stays on one line when it fits; otherwise the amount drops below. */
+  function fitLabels() {
+    const btns = [el.btns.call, el.btns.raise, el.btns.allin].filter((b) => !b.hidden);
+    btns.forEach((b) => b.classList.remove('stack'));
+    const overflow = btns.some((b) => b.firstElementChild.scrollWidth > b.firstElementChild.clientWidth + 0.5);
+    // side by side buttons stack together, so the row reads evenly
+    if (overflow) btns.forEach((b) => b.classList.add('stack'));
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Waiting for you
+  // ---------------------------------------------------------------------------------------------
+
+  function waitHuman(kind) {
+    return new Promise((resolve) => {
+      T.waiting = { kind, resolve };
+      refreshActions();
+    });
+  }
+
+  function resolveHuman(kind, value) {
+    const w = T.waiting;
+    if (!w || w.kind !== kind) return false;
+    T.waiting = null;
+    refreshActions();
+    w.resolve(value);
+    return true;
+  }
+
+  function isLegal(a, L) {
+    if (!a || !L || !L.isTurn) return false;
+    switch (a.type) {
+      case 'fold': return L.canFold;
+      case 'check': return L.canCheck;
+      case 'call': return L.canCall;
+      case 'allin': return L.canAllIn;
+      case 'raise':
+        return Number.isInteger(a.amount) &&
+          ((L.canRaise && a.amount >= L.minRaiseTo && a.amount <= L.maxRaiseTo) || (a.amount === L.maxRaiseTo && L.canAllIn));
+      default: return false;
+    }
+  }
+
+  function humanAct(action) {
+    if (!T.waiting || T.waiting.kind !== 'act') return;
+    const L = legal();
+    if (!isLegal(action, L)) return;
+    resolveHuman('act', action);
+  }
+
+  function bindTable() {
+    const b = el.btns;
+    b.fold.addEventListener('click', () => humanAct({ type: 'fold' }));
+    b.call.addEventListener('click', () => {
+      const L = legal();
+      if (L) humanAct(L.toCall > 0 ? { type: 'call' } : { type: 'check' });
+    });
+    b.raise.addEventListener('click', () => {
+      const L = legal();
+      if (!L) return;
+      if (L.maxRaiseTo < L.minRaiseTo) humanAct({ type: 'allin' });
+      else humanAct({ type: 'raise', amount: L.minRaiseTo });
+    });
+    b.more.addEventListener('click', openRaiseSheet);
+    b.allin.addEventListener('click', () => {
+      const L = legal();
+      if (L) humanAct(L.canAllIn ? { type: 'allin' } : { type: 'call' });
+    });
+    b.next.addEventListener('click', () => resolveHuman('next', true));
+    el.infoBox.addEventListener('click', () => el.infoBox.classList.toggle('page-b'));
+    el.btnLeave.addEventListener('click', () => openSheet('leave'));
+    $('btn-leave-stay').addEventListener('click', () => closeSheet('leave'));
+    $('btn-leave-confirm').addEventListener('click', leaveTable);
+    $('btn-svara-join').addEventListener('click', () => { if (resolveHuman('svara', true)) closeSheet('svara'); });
+    $('btn-svara-decline').addEventListener('click', () => { if (resolveHuman('svara', false)) closeSheet('svara'); });
+    $('btn-rebuy').addEventListener('click', () => { if (resolveHuman('busted', 'rebuy')) closeSheet('busted'); });
+    $('btn-busted-home').addEventListener('click', () => { if (resolveHuman('busted', 'home')) closeSheet('busted'); });
+    bindRaiseSheet();
+    el.backdrop.addEventListener('click', dismissSheet);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') dismissSheet();
+      if (e.key === 'Tab' && openName) trapFocus(e, sheets[openName]);
+    });
+  }
+
+  /** Keep Tab inside the open sheet. */
+  function trapFocus(e, sheet) {
+    const items = Array.from(sheet.querySelectorAll('button:not(:disabled), input:not(:disabled)'));
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (!sheet.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+    else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  /** Backdrop tap / Escape: only the leave and raise sheets can be dismissed. */
+  function dismissSheet() {
+    if (openName === 'leave' || openName === 'raise') closeSheet(openName);
+  }
+
+  // --- raise sheet -----------------------------------------------------------------------------
+
+  let raiseCtx = null;
+
+  function openRaiseSheet() {
+    if (!T.waiting || T.waiting.kind !== 'act') return;
+    const L = legal();
+    if (!L || !L.canRaise) return;
+    const s = T.game.getState();
+    const bb = s.bb;
+    const amounts = [L.minRaiseTo];
+    for (let a = (Math.floor(L.minRaiseTo / bb) + 1) * bb; a < L.maxRaiseTo; a += bb) amounts.push(a);
+    if (amounts[amounts.length - 1] !== L.maxRaiseTo) amounts.push(L.maxRaiseTo);
+    const nearest = (target) => {
+      const t = Math.round(target / bb) * bb;
+      let best = 0;
+      for (let i = 0; i < amounts.length; i++) if (Math.abs(amounts[i] - t) < Math.abs(amounts[best] - t)) best = i;
+      return best;
+    };
+    const potAfterCall = s.pot + L.toCall;
+    const presets = {
+      min: 0,
+      half: nearest(L.isBet ? s.pot / 2 : s.currentBet + potAfterCall / 2),
+      pot: nearest(L.isBet ? s.pot : s.currentBet + potAfterCall),
+      allin: amounts.length - 1,
+    };
+    raiseCtx = { L, amounts, presets, idx: 0 };
+    openSheet('raise', () => {
+      el.raiseSlider.max = String(amounts.length - 1);
+      el.raiseSlider.value = '0';
+      el.raiseSlider.disabled = amounts.length < 2;
+      el.raiseMin.textContent = fmtAmt(amounts[0]);
+      el.raiseMax.textContent = fmtAmt(amounts[amounts.length - 1]);
+      renderRaise();
+    });
+  }
+
+  function renderRaise() {
+    if (!raiseCtx) return;
+    const { L, amounts, presets, idx } = raiseCtx;
+    const amount = amounts[idx];
+    const allIn = amount === L.maxRaiseTo;
+    el.raiseLabel.textContent = allIn ? 'Ва банк' : L.isBet ? 'Залагам' : 'Вдигам до';
+    el.raiseAmount.textContent = fmt(amount);
+    el.raiseConfirm.textContent = allIn ? `Ва банк ${fmt(amount)}` : L.isBet ? `Залагам ${fmt(amount)}` : `Вдигам до ${fmt(amount)}`;
+    for (const btn of el.presets) btn.classList.toggle('on', presets[btn.dataset.preset] === idx);
+    el.raiseSlider.setAttribute('aria-valuetext', fmt(amount));
+  }
+
+  function bindRaiseSheet() {
+    el.raiseSlider.addEventListener('input', () => {
+      if (!raiseCtx) return;
+      raiseCtx.idx = Number(el.raiseSlider.value) || 0;
+      renderRaise();
+    });
+    for (const btn of el.presets) {
+      btn.addEventListener('click', () => {
+        if (!raiseCtx) return;
+        raiseCtx.idx = raiseCtx.presets[btn.dataset.preset];
+        el.raiseSlider.value = String(raiseCtx.idx);
+        renderRaise();
+      });
+    }
+    el.raiseConfirm.addEventListener('click', () => {
+      if (!raiseCtx) return;
+      const { L, amounts, idx } = raiseCtx;
+      const amount = amounts[idx];
+      raiseCtx = null;
+      closeSheet('raise');
+      humanAct(amount === L.maxRaiseTo && L.canAllIn ? { type: 'allin' } : { type: 'raise', amount });
+    });
+    $('btn-raise-cancel').addEventListener('click', () => { raiseCtx = null; closeSheet('raise'); });
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // The game loop (exactly one runs at a time; T.token identifies it)
+  // ---------------------------------------------------------------------------------------------
+
+  function startLoop() {
+    const token = ++T.token;
+    T.errors = 0;
+    runLoop(token);
+  }
+
+  async function runLoop(token) {
+    await sleep(400); // let the empty table show before the first deal
+    while (alive(token)) {
+      try {
+        if (!(await loopStep(token))) return;
+        T.errors = 0;
+      } catch (err) {
+        console.error('[svara] game loop error:', err);
+        if (!alive(token) || ++T.errors > 3) return;
+        resyncView();
+        await sleep(300);
+      }
+    }
+  }
+
+  /** One engine call (or one wait). Returns false when the loop should stop. */
+  async function loopStep(token) {
+    const s = T.game.getState();
+    switch (s.phase) {
+      case 'idle':
+        await step(() => T.game.startHand(), token);
+        return true;
+      case 'betting':
+        if (s.toAct === HUMAN_ID) {
+          const action = await waitHuman('act');
+          if (!alive(token) || !action) return false;
+          await step(() => T.game.act(HUMAN_ID, action), token);
+        } else {
+          await botTurn(s.toAct, token);
+        }
+        return true;
+      case 'svara-offer': {
+        const bot = s.pendingSvaraDecisions.find((id) => id !== HUMAN_ID);
+        if (bot) {
+          await sleep(rand(450, 800));
+          if (!alive(token)) return false;
+          const join = AI.decideSvaraJoin(T.game.getState(), bot, (T.bots[bot] || {}).personality || 'tag');
+          await step(() => T.game.svaraJoin(bot, join), token);
+        } else if (s.pendingSvaraDecisions.includes(HUMAN_ID)) {
+          const join = await humanSvaraOffer(s);
+          if (!alive(token) || join == null) return false;
+          await step(() => T.game.svaraJoin(HUMAN_ID, join), token);
+        } else {
+          throw new Error('svara-offer without pending decisions');
+        }
+        return true;
+      }
+      case 'hand-over': {
+        const go = await betweenHands(token);
+        if (!go || !alive(token)) return false;
+        replaceBustedBots();
+        await step(() => T.game.nextHand(), token);
+        return true;
+      }
+      default:
+        throw new Error(`unexpected phase '${s.phase}'`);
+    }
+  }
+
+  async function step(fn, token) {
+    const pre = T.game.getState();
+    const events = fn();
+    await playEvents(events, pre, token);
+    if (!alive(token)) return;
+    checkSync();
+    saveProfile();
+  }
+
+  async function botTurn(id, token) {
+    const se = seatEl(id);
+    if (se) se.root.classList.add('thinking');
+    const me = T.view.players[HUMAN_ID];
+    const humanLive = me && me.inHand && !me.folded;
+    await sleep(rand(700, 1300) * (humanLive ? 1 : 0.6));
+    if (se) se.root.classList.remove('thinking');
+    if (!alive(token)) return;
+    const s = T.game.getState();
+    if (s.phase !== 'betting' || s.toAct !== id) return;
+    const action = AI.decide(s, id, (T.bots[id] || {}).personality || 'tag');
+    await step(() => T.game.act(id, action), token);
+  }
+
+  function humanSvaraOffer(s) {
+    const names = s.svaraParticipants.map((id) => (id === HUMAN_ID ? HUMAN_NAME : (s.players.find((p) => p.id === id) || {}).name)).join(', ');
+    const p = waitHuman('svara');
+    openSheet('svara', () => {
+      el.svaraTitle.textContent = `Свара! Влез за ${fmt(s.svaraJoinCost)}?`;
+      el.svaraBody.textContent = `Банка ${fmt(s.svaraPot)} · В сварата: ${names}`;
+    });
+    return p;
+  }
+
+  /** After a hand: Следваща ръка, or the busted sheet when you are out of chips. */
+  async function betweenHands(token) {
+    const me = T.game.getState().players.find((p) => p.id === HUMAN_ID);
+    if (!me || me.stack <= 0) {
+      await sleep(600);
+      if (!alive(token)) return false;
+      const choice = await waitBusted();
+      if (!alive(token) || choice == null) return false;
+      const N = Math.min(T.stake.maxBuyIn, P.bankroll);
+      if (choice !== 'rebuy' || P.bankroll < T.stake.minBuyIn) {
+        leaveTable();
+        return false;
+      }
+      P.bankroll -= N;
+      T.game.addChips(HUMAN_ID, N);
+      T.view.players[HUMAN_ID].stack += N;
+      countTo(el.infoStack, T.view.players[HUMAN_ID].stack, 500, { tone: true });
+      saveProfile();
+      toast(`+${fmt(N)} чипа на масата`);
+      return true;
+    }
+    await sleep(250);
+    if (!alive(token)) return false;
+    T.actionMode = 'next';
+    const go = await waitHuman('next');
+    return !!go;
+  }
+
+  function waitBusted() {
+    const p = waitHuman('busted');
+    const N = Math.min(T.stake.maxBuyIn, P.bankroll);
+    const can = P.bankroll >= T.stake.minBuyIn;
+    openSheet('busted', () => {
+      el.rebuy.disabled = !can;
+      el.rebuy.textContent = can ? `Купи отново ${fmt(N)}` : 'Купи отново';
+      el.bustedBody.textContent = can
+        ? `В банката имаш ${fmt(P.bankroll)}. Купи отново или се върни в началото.`
+        : `В банката имаш ${fmt(P.bankroll)}, а входът е поне ${fmt(T.stake.minBuyIn)}.`;
+    });
+    return p;
+  }
+
+  /** Busted bots leave between hands; a new bot from the pool sits down with a fresh buy-in. */
+  function replaceBustedBots() {
+    const s = T.game.getState();
+    const seated = new Set(s.players.map((p) => T.bots[p.id] && T.bots[p.id].key).filter(Boolean));
+    const names = [];
+    for (const p of s.players) {
+      if (p.isHuman || p.stack > 0) continue;
+      const free = BOT_POOL.filter((b) => !seated.has(b.key));
+      const b = (free.length ? free : BOT_POOL)[Math.floor(Math.random() * (free.length || BOT_POOL.length))];
+      seated.add(b.key);
+      delete T.bots[p.id];
+      T.game.setPlayer(p.seat, makeBotPlayer(b));
+      names.push(b.name);
+    }
+    if (names.length === 1) toast(`${names[0]} сяда на масата`);
+    else if (names.length > 1) toast(`${names.slice(0, -1).join(', ')} и ${names[names.length - 1]} сядат на масата`);
+  }
+
+  function leaveTable() {
+    if (!T.game) return;
+    P.bankroll += tableStack(); // committed chips of a running hand are lost
+    T.token++;
+    const w = T.waiting;
+    T.waiting = null;
+    if (w) w.resolve(null);
+    T.game = null;
+    raiseCtx = null;
+    for (const node of Array.from(countJobs.keys())) stopCount(node);
+    closeAllSheets();
+    el.fx.replaceChildren();
+    el.table.classList.remove('turn');
+    saveProfile();
+    homeFromTable();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Debug hook (used by tests and reviewers)
+  // ---------------------------------------------------------------------------------------------
+
+  function rig(hands) {
+    if (!hands || typeof hands !== 'object') throw new Error('rig: expected { playerId: [cardId, cardId, cardId] }');
+    const st = T.game ? T.game.getState() : null;
+    const out = {};
+    const seen = new Set();
+    for (const [key, cards] of Object.entries(hands)) {
+      let id = key;
+      if (key === 'human') id = HUMAN_ID;
+      else if (/^\d+$/.test(key) && st) {
+        const p = st.players.find((q) => q.seat === Number(key));
+        if (p) id = p.id;
+      }
+      if (!Array.isArray(cards) || cards.length !== 3) throw new Error(`rig: ${key} needs exactly 3 cards`);
+      out[id] = cards.map((c) => {
+        const card = E.parseCard(typeof c === 'string' ? c : c && c.id);
+        if (seen.has(card.id)) throw new Error(`rig: card ${card.id} is used twice`);
+        seen.add(card.id);
+        return card.id;
+      });
+    }
+    T.rig = out;
+    return true;
+  }
+
+  function setSpeed(f) {
+    const v = Number(f);
+    SPEED = Number.isFinite(v) && v >= 0 ? Math.min(v, 10) : 1;
+    document.documentElement.style.setProperty('--speed', String(SPEED));
+    return SPEED;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Boot
+  // ---------------------------------------------------------------------------------------------
+
+  function grab() {
+    screens.home = $('screen-home');
+    screens.stakes = $('screen-stakes');
+    screens.table = $('screen-table');
+    for (const name of ['leave', 'raise', 'svara', 'busted']) sheets[name] = $(`sheet-${name}`);
+    Object.assign(el, {
+      table: screens.table,
+      homeScroll: $('home-scroll'),
+      homeBankroll: $('home-bankroll'),
+      homeXp: $('home-xp-value'),
+      levelValue: $('home-level-value'),
+      levelArc: $('level-arc'),
+      freeChips: $('btn-free-chips'),
+      modes: $('modes'),
+      leaderboard: $('leaderboard'),
+      stakesBankroll: $('stakes-bankroll'),
+      stakesValue: $('stakes-value'),
+      buyinValue: $('buyin-value'),
+      stakesNote: $('stakes-note'),
+      stakesSlider: $('stakes-slider'),
+      stakesSeat: $('stakes-seat'),
+      btnStart: $('btn-start'),
+      btnStakesBack: $('btn-stakes-back'),
+      btnLeave: $('btn-leave'),
+      tableXp: $('table-xp'),
+      tableStakes: $('table-stakes'),
+      tableXpValue: $('table-xp-value'),
+      opps: $('opps'),
+      middle: $('middle'),
+      deckTop: $('deck-top'),
+      pill: $('hand-pill'),
+      potLabel: $('pot-label'),
+      potAmount: $('pot-amount'),
+      banner: $('svara-banner'),
+      svaraSub: $('svara-sub'),
+      heroBubble: $('hero-bubble'),
+      actions: $('actions'),
+      hand: $('hand'),
+      infoBox: $('info-box'),
+      infoHand: $('info-hand'),
+      infoAvatar: $('info-avatar'),
+      infoStack: $('info-stack'),
+      heroDealer: $('hero-dealer'),
+      eqWin: $('eq-win'),
+      eqTie: $('eq-tie'),
+      sheetLayer: $('sheet-layer'),
+      backdrop: $('backdrop'),
+      raiseLabel: $('raise-label'),
+      raiseAmount: $('raise-amount'),
+      raiseSlider: $('raise-slider'),
+      raiseMin: $('raise-min'),
+      raiseMax: $('raise-max'),
+      raiseConfirm: $('btn-raise-confirm'),
+      presets: Array.from(document.querySelectorAll('.preset')),
+      svaraTitle: $('svara-title'),
+      svaraBody: $('svara-body'),
+      rebuy: $('btn-rebuy'),
+      bustedBody: $('busted-body'),
+      fx: $('fx'),
+      toast: $('toast'),
+    });
+    el.homeBankroll._fmt = fmtWide;
+    el.infoStack._fmt = fmtWide;
+    el.btns = {
+      fold: $('btn-fold'), call: $('btn-call'), raise: $('btn-raise'), more: $('btn-raise-more'),
+      allin: $('btn-allin'), next: $('btn-next'),
+    };
+  }
+
+  function bindHome() {
+    $('mode-ai').addEventListener('click', goStakes);
+    $('mode-online').addEventListener('click', () => toast('Скоро'));
+    $('nav-shop').addEventListener('click', () => toast('Скоро'));
+    $('nav-profile').addEventListener('click', () => toast('Скоро'));
+    $('nav-home').addEventListener('click', () => el.homeScroll.scrollTo({ top: 0, behavior: reduced() ? 'auto' : 'smooth' }));
+    $('btn-lb-help').addEventListener('click', () => toast('+1 XP за всяка ръка · +5 XP за спечелена банка'));
+    el.freeChips.addEventListener('click', () => {
+      P.bankroll += FREE_CHIPS;
+      saveProfile();
+      el.freeChips.hidden = true;
+      countTo(el.homeBankroll, P.bankroll, 900, { tone: true, ease: easeExpo });
+    });
+    el.modes.addEventListener('scroll', () => { if (!modeRaf) modeRaf = requestAnimationFrame(updateModeScale); }, { passive: true });
+    window.addEventListener('resize', () => {
+      if (!modeRaf) modeRaf = requestAnimationFrame(updateModeScale);
+      if (screenName === 'table') fitLabels();
+    });
+  }
+
+  let started = false;
+  function start(data) {
+    if (started) return;
+    started = true;
+    const fromHot = data && typeof data === 'object' && typeof data.bankroll === 'number' ? sanitizeProfile(data) : null;
+    Object.assign(P, fromHot || loadStored() || {});
+    grab();
+    buildTicks();
+    bindHome();
+    bindStakes();
+    bindTable();
+    showOnly('home');
+    screenName = 'home';
+    renderHome(true);
+    requestAnimationFrame(updateModeScale);
+    window.addEventListener('pagehide', saveProfile);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveProfile(); });
+    if (window.claude && window.claude.hot && typeof window.claude.hot.snapshot === 'function') {
+      window.claude.hot.snapshot(() => profileSnapshot());
+    }
+    window.__svaraDebug = {
+      getState: () => (T.game ? T.game.getState() : null),
+      setSpeed,
+      rig,
+      get game() { return T.game; },
+      screen: () => screenName,
+      profile: () => ({ ...P }),
+    };
+  }
+
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+</body>
+</html>
