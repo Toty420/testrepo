@@ -109,6 +109,7 @@
       </div>
       <div class="pill" id="hand-pill" hidden></div>
       <div class="pot" id="pot">
+        <span class="pot-glow" id="pot-glow" aria-hidden="true"></span>
         <div class="pot-label" id="pot-label">Банка</div>
         <div class="pot-amount num" id="pot-amount">0</div>
       </div>
@@ -121,17 +122,18 @@
     <div class="hero-bet"><span class="bubble num" id="hero-bubble" hidden></span></div>
 
     <div class="actions" id="actions" data-mode="bet">
-      <button type="button" class="act" id="btn-fold" data-testid="btn-fold" disabled><span class="act-in"><span class="lbl">Пас</span></span></button>
-      <button type="button" class="act" id="btn-call" data-testid="btn-call" disabled><span class="act-in"><span class="lbl">Чек</span><span class="amt num"></span></span></button>
-      <button type="button" class="act" id="btn-raise" data-testid="btn-raise" disabled><span class="act-in"><span class="lbl">Залагам</span><span class="amt num"></span></span></button>
+      <button type="button" class="act" id="btn-fold" data-testid="btn-fold" disabled><span class="act-in"><span class="lbl">Пас</span></span><span class="act-shine" aria-hidden="true"></span></button>
+      <button type="button" class="act" id="btn-call" data-testid="btn-call" disabled><span class="act-in"><span class="lbl">Чек</span><span class="amt num"></span></span><span class="act-shine" aria-hidden="true"></span></button>
+      <button type="button" class="act" id="btn-raise" data-testid="btn-raise" disabled><span class="act-in"><span class="lbl">Залагам</span><span class="amt num"></span></span><span class="act-shine" aria-hidden="true"></span></button>
       <button type="button" class="act act-more" id="btn-raise-more" data-testid="btn-raise-more" aria-label="Избери сума" disabled>
         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 11V1.5M2 5.5l4-4 4 4"/></svg>
+        <span class="act-shine" aria-hidden="true"></span>
       </button>
-      <button type="button" class="act" id="btn-allin" data-testid="btn-allin" hidden disabled><span class="act-in"><span class="lbl">Ва банк</span><span class="amt num"></span></span></button>
+      <button type="button" class="act" id="btn-allin" data-testid="btn-allin" hidden disabled><span class="act-in"><span class="lbl">Ва банк</span><span class="amt num"></span></span><span class="act-shine" aria-hidden="true"></span></button>
       <button type="button" class="act" id="btn-next" data-testid="btn-next" hidden disabled><span class="act-in"><span class="lbl">Следваща ръка</span></span></button>
     </div>
 
-    <div class="hand-row">
+    <div class="hand-row" id="hand-row">
       <div class="hand" id="hand" aria-label="Твоите карти"></div>
       <button type="button" class="info" id="info-box" data-testid="info-box" title="Смени изгледа: стек или шансове">
         <span class="info-clip">
@@ -152,6 +154,10 @@
         <span class="dots" aria-hidden="true"><i></i><i></i></span>
       </button>
     </div>
+
+    <!-- svara: the table dims around the middle and flashes once -->
+    <div class="vignette" id="vignette" aria-hidden="true"></div>
+    <div class="flash" id="flash" aria-hidden="true"></div>
   </section>
 
   <!-- ============================== SHEETS ============================== -->
@@ -214,6 +220,7 @@
   </div>
 
   <div class="fx" id="fx" aria-hidden="true"></div>
+  <canvas class="fx-canvas" id="fx-canvas" aria-hidden="true" hidden></canvas>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
 <!-- SCRIPTS -->

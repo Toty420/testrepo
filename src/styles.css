@@ -49,6 +49,30 @@
   --pill-ink: #232326;
   --primary-bg: #f9f9f9;
   --primary-ink: #232326;
+  /* effects: chips, glows, rings, particles */
+  --chip: #f2c86a;
+  --chip-edge: #a87a33;
+  --chip-shadow: rgba(0, 0, 0, .5);
+  --fly-shadow: rgba(0, 0, 0, .55);
+  --glow-gold: rgba(243, 181, 79, .75);
+  --hot-glow: rgba(243, 181, 79, .5);
+  --pot-glow: rgba(243, 181, 79, .2);
+  --turn-ring: rgba(250, 250, 250, .16);
+  --turn-glow: rgba(250, 250, 250, .09);
+  --think-ring: rgba(250, 250, 250, .9);
+  --think-track: rgba(250, 250, 250, .1);
+  --allin-ring: #f3b54f;
+  --allin-echo: #f8665c;
+  --allin-glow: rgba(248, 102, 92, .4);
+  --vignette: rgba(0, 0, 0, .82);
+  --flash: rgba(255, 255, 255, .8);
+  --shine: rgba(255, 255, 255, .14);
+  --shimmer: rgba(243, 181, 79, .6);
+  --spark: #ffd98a;
+  --confetti-1: #f3b54f;
+  --confetti-2: #ffd98a;
+  --confetti-3: #fff4dc;
+  --confetti-4: #e5a23e;
   /* home */
   --xp-blue: #6ec9e2;
   --gem: #58bbe8;
@@ -77,6 +101,9 @@
   /* motion: every duration is multiplied by --speed (debug hook setSpeed) */
   --speed: 1;
   --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --spring: cubic-bezier(.34, 1.56, .64, 1); /* release of a pressed control: a little overshoot */
+  --press-in: calc(80ms * var(--speed));
+  --press-out: calc(420ms * var(--speed));
 
   background: var(--bg);
 }
@@ -129,17 +156,25 @@ h2, p, ol { margin: 0; padding: 0; }
 .icon-btn {
   width: 44px; height: 44px; margin-left: -12px;
   display: grid; place-items: center; border-radius: 12px; color: var(--text);
+  transition: transform var(--press-out) var(--spring);
+}
+/* Press feedback: controls dip to .96 and spring back on release. */
+.icon-btn:active, .help:active, .nav-btn:active, .btn-free:active, .preset:active:not(:disabled) {
+  transform: scale(.94); transition-duration: var(--press-in); transition-timing-function: ease-out;
 }
 .icon-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 .btn-primary, .btn-secondary {
   width: 100%; height: 56px; border-radius: 20px;
   font-size: 17px; font-weight: 500; letter-spacing: .01em;
-  transition: opacity calc(100ms * var(--speed)), background-color calc(150ms * var(--speed));
+  transition: opacity calc(100ms * var(--speed)), background-color calc(150ms * var(--speed)), transform var(--press-out) var(--spring);
 }
 .btn-primary { background: var(--primary-bg); color: var(--primary-ink); }
 .btn-secondary { background: var(--surface-2); color: var(--text); }
-.btn-primary:active:not(:disabled), .btn-secondary:active:not(:disabled) { opacity: .6; }
+.btn-primary:active:not(:disabled), .btn-secondary:active:not(:disabled) {
+  opacity: .7; transform: scale(.96);
+  transition-duration: var(--press-in); transition-timing-function: ease-out;
+}
 .btn-primary:disabled { background: var(--surface); color: var(--text-off); }
 
 /* ------------------------------------------------------------------------------------------ */
@@ -177,6 +212,7 @@ h2, p, ol { margin: 0; padding: 0; }
 .btn-free {
   margin-top: 10px; height: 40px; padding: 0 18px; border-radius: 20px;
   border: 2px solid var(--line-2); color: var(--text); font-size: 15px;
+  transition: transform var(--press-out) var(--spring);
 }
 .btn-free:active { background: var(--surface); }
 
@@ -199,9 +235,13 @@ h2, p, ol { margin: 0; padding: 0; }
   border-radius: 28px; padding: 26px 24px 24px;
   display: flex; flex-direction: column; align-items: flex-start; text-align: left;
   scroll-snap-align: center;
-  transform: scale(var(--mode-scale, 1));
+  /* --mode-scale / --mode-tilt come from the scroll position; the tilt only shows while scrolling */
+  transform: perspective(900px) rotateY(var(--tilt, 0deg)) scale(calc(var(--mode-scale, 1) * var(--press, 1)));
   transform-origin: center;
+  transition: transform calc(380ms * var(--speed)) var(--spring);
 }
+.modes.scrolling .mode { --tilt: var(--mode-tilt, 0deg); transition: transform calc(90ms * var(--speed)) linear; }
+.mode:active { --press: .97; transition-duration: var(--press-in); }
 .mode:first-child { scroll-snap-align: start; }
 .mode:last-child { scroll-snap-align: end; }
 .mode-ai { background: var(--grad-ai); }
@@ -221,6 +261,7 @@ h2, p, ol { margin: 0; padding: 0; }
   border: 1.6px solid var(--text-2); color: var(--text-2);
   font-size: 12px; font-weight: 600; line-height: 1; display: grid; place-items: center;
   position: relative;
+  transition: transform var(--press-out) var(--spring);
 }
 .help::after { content: ""; position: absolute; inset: -12px; }
 .lb { list-style: none; margin-top: 14px; }
@@ -246,7 +287,7 @@ h2, p, ol { margin: 0; padding: 0; }
   background: var(--nav-bg);
   -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
 }
-.nav-btn { position: relative; display: grid; place-items: center; color: var(--nav-idle); }
+.nav-btn { position: relative; display: grid; place-items: center; color: var(--nav-idle); transition: transform var(--press-out) var(--spring); }
 .nav-btn svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .nav-btn.active { color: var(--nav-active); }
 .nav-btn.active .fill { fill: currentColor; }
@@ -344,7 +385,39 @@ h2, p, ol { margin: 0; padding: 0; }
 .seat.thinking .seat-marker::before { opacity: 1; animation: pulse calc(800ms * var(--speed)) ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
 .seat-body { display: flex; flex-direction: column; align-items: center; width: 100%; transition: opacity calc(120ms * var(--speed)); }
-.seat-avatar { position: relative; width: var(--avatar); height: var(--avatar); display: grid; place-items: center; font-size: calc(var(--avatar) * .88); line-height: 1; }
+.seat-avatar {
+  position: relative; width: var(--avatar); height: var(--avatar); display: grid; place-items: center;
+  font-size: calc(var(--avatar) * .88); line-height: 1;
+  transition: filter calc(300ms * var(--speed));
+}
+/* Thinking: a thin ring sweeps once around the avatar over the think time. Each half is a
+   circle whose coloured half rotates into a clipped half-box, so only transforms animate. */
+.think { position: absolute; inset: -4px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity calc(150ms * var(--speed)); }
+.think::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--think-track); }
+.think > i { position: absolute; top: 0; bottom: 0; overflow: hidden; }
+.think > i.r { left: 50%; right: 0; }
+.think > i.l { left: 0; right: 50%; }
+.think b { position: absolute; top: 0; width: 200%; height: 100%; border-radius: 50%; border: 2px solid transparent; transform: rotate(45deg); }
+.think > i.r b { left: -100%; border-left-color: var(--think-ring); border-bottom-color: var(--think-ring); }
+.think > i.l b { left: 0; border-top-color: var(--think-ring); border-right-color: var(--think-ring); }
+.seat.thinking .think { opacity: 1; }
+/* All-in: a steady gold ring and a coral echo that pulses out three times. */
+.seat-avatar::before, .seat-avatar::after, .info-avatar::before, .info-avatar::after {
+  content: ""; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; opacity: 0;
+}
+.seat.allin .seat-avatar::before, .info.allin .info-avatar::before {
+  border: 2px solid var(--allin-ring); box-shadow: 0 0 12px var(--allin-glow); opacity: .95;
+  transition: opacity calc(200ms * var(--speed));
+}
+.seat.allin .seat-avatar::after, .info.allin .info-avatar::after {
+  border: 2px solid var(--allin-echo);
+  animation: allin-echo calc(900ms * var(--speed)) ease-out 3;
+}
+@keyframes allin-echo { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(1.5); } }
+/* Svara: the tied players sit above the vignette and glow gold. */
+.seat.tied { z-index: 5; }
+.seat.tied .seat-avatar { filter: drop-shadow(0 0 9px var(--glow-gold)); }
+.seat.tied .mini:not(.dim) { filter: drop-shadow(0 0 4px var(--glow-gold)); }
 .dealer {
   position: absolute; left: calc(50% + 4px); top: calc(50% + 6px);
   width: 20px; height: 20px; border-radius: 50%;
@@ -384,7 +457,7 @@ h2, p, ol { margin: 0; padding: 0; }
 .mini {
   position: relative; flex: none; width: var(--mini-w); height: var(--mini-h);
   border-radius: 4px; background: var(--card-face); overflow: hidden;
-  transition: filter calc(120ms * var(--speed));
+  transition: filter calc(220ms * var(--speed)), transform calc(320ms * var(--speed)) var(--spring);
 }
 .mini.back { opacity: .92; }
 .mini.back::after {
@@ -394,16 +467,24 @@ h2, p, ol { margin: 0; padding: 0; }
 .mini .r { position: absolute; left: 2px; right: 0; top: 3px; font-size: clamp(9px, calc(var(--mini-w) * .6), 11px); line-height: 1; font-weight: 600; color: var(--card-ink); letter-spacing: -.06em; text-align: left; }
 .mini .s { position: absolute; left: 2px; bottom: 3px; font-size: clamp(8px, calc(var(--mini-w) * .5), 10px); line-height: 1; color: var(--card-suit-dark); }
 .mini.red .r, .mini.red .s { color: var(--card-red); }
-.mini.dim, .card.dim { filter: brightness(.4); }
+.mini.dim, .card.dim { filter: brightness(.42) saturate(.1); }
+.mini.hot { transform: translateY(-3px); filter: drop-shadow(0 0 3px var(--glow-gold)); }
 
 /* middle: deck, pill, pot, svara banner */
-.middle { position: relative; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, 1.4dvh, 14px); }
+.middle { position: relative; z-index: 5; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, 1.4dvh, 14px); }
 .deck { position: relative; flex: none; width: var(--deck-w); height: var(--deck-h); transition: transform calc(250ms * var(--speed)) var(--ease-out); }
 .deck-layer, .deck-top { position: absolute; inset: 0; border-radius: calc(var(--deck-w) * .18); }
 .deck-layer.l2 { background: var(--deck-l2); transform: translate(-4px, -4px); }
 .deck-layer.l1 { background: var(--deck-l1); transform: translate(-2px, -2px); }
 .deck-top { background: var(--card-face); }
-.back::after, .card.back::after, .fly-card::after {
+/* riffle shuffle: two half-decks of card backs, built by the script over the deck */
+.deck.riffling > .deck-layer, .deck.riffling > .deck-top { opacity: 0; }
+.riffle { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.riffle-card {
+  position: absolute; inset: 0; border-radius: calc(var(--deck-w) * .18);
+  background: var(--card-face); box-shadow: 0 1px 3px var(--shadow-card);
+}
+.back::after {
   content: ""; position: absolute; inset: calc(var(--deck-w) * .1);
   background: repeating-linear-gradient(135deg, var(--card-back-ink) 0 2px, transparent 2px 9px);
 }
@@ -412,10 +493,16 @@ h2, p, ol { margin: 0; padding: 0; }
   display: inline-flex; align-items: center;
   background: var(--pill-bg); color: var(--pill-ink); font-size: 15px; white-space: nowrap;
 }
-.pot { display: flex; flex-direction: column; align-items: center; }
+.pot { position: relative; z-index: 0; display: flex; flex-direction: column; align-items: center; }
+.pot-glow {
+  position: absolute; z-index: -1; left: 50%; top: 50%; width: 220px; height: 130px; margin: -65px 0 0 -110px;
+  background: radial-gradient(closest-side, var(--pot-glow), transparent); opacity: 0; pointer-events: none;
+}
+.pot-label, .pot-amount { transition: opacity calc(200ms * var(--speed)); }
+.pot.celebrate .pot-label, .pot.celebrate .pot-amount { opacity: 0; } /* "Печелиш +N" takes their place */
 .pot-label { font-size: 13px; color: var(--text-2); }
 .pot-amount { margin-top: 2px; font-size: clamp(28px, calc(var(--W) * .077), 34px); font-weight: 300; line-height: 1.1; color: var(--text); }
-.svara-banner { display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity calc(150ms * var(--speed)); }
+.svara-banner { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity calc(150ms * var(--speed)); }
 /* the svara sheet would slice the banner in half; the sheet says the same thing */
 body:has(#sheet-svara.open) .svara-banner { opacity: 0; }
 .svara-word { font-size: clamp(42px, calc(var(--W) * .118), 52px); font-weight: 800; letter-spacing: .04em; line-height: 1; color: var(--win-gold); }
@@ -438,31 +525,62 @@ body:has(#sheet-svara.open) .svara-banner { opacity: 0; }
   font-size: clamp(14px, calc(var(--W) * .039), 17px); line-height: 1.1;
   padding: 0 6px;
   display: grid; place-items: center;
-  transition: background-color calc(100ms * var(--speed)), color calc(100ms * var(--speed)), opacity calc(100ms * var(--speed));
+  position: relative; overflow: hidden;
+  transition: background-color calc(100ms * var(--speed)), color calc(100ms * var(--speed)), opacity calc(100ms * var(--speed)),
+    border-color calc(100ms * var(--speed)), transform var(--press-out) var(--spring);
+}
+.act > * { grid-area: 1 / 1; }
+/* a light band that sweeps once across each enabled button when your turn starts */
+.act-shine {
+  justify-self: start; align-self: stretch; width: 45%; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, transparent, var(--shine), transparent);
 }
 .act-in { display: flex; align-items: baseline; justify-content: center; gap: .3em; white-space: nowrap; min-width: 0; max-width: 100%; }
 .act .amt:empty { display: none; }
 .act-more svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .table.turn .act:not(:disabled), .actions.ready .act:not(:disabled) {
   background: var(--surface); border-color: var(--surface); color: var(--text);
-  transition-duration: calc(150ms * var(--speed));
+  transition-duration: calc(150ms * var(--speed)), calc(150ms * var(--speed)), calc(150ms * var(--speed)), calc(150ms * var(--speed)), var(--press-out);
 }
-.act:not(:disabled):active { background: var(--surface-press); border-color: var(--surface-press); }
+.act:not(:disabled):active {
+  background: var(--surface-press); border-color: var(--surface-press); transform: scale(.96);
+  transition-duration: var(--press-in); transition-timing-function: ease-out;
+}
 .act.illegal { opacity: .4; }
 .act.stack .act-in { flex-direction: column; align-items: center; gap: 1px; }
 .act.stack .amt { font-size: 12px; }
 
 /* hand row */
 .hand-row { margin-top: var(--row-gap); height: var(--card-h); display: flex; gap: clamp(12px, 3.6vw, 16px); }
-.hand { position: relative; flex: none; width: calc(var(--card-w) + 2 * var(--step)); height: var(--card-h); }
+.hand {
+  position: relative; flex: none; width: calc(var(--card-w) + 2 * var(--step)); height: var(--card-h);
+  transition: transform calc(320ms * var(--speed)) var(--spring);
+}
+.table.turn .hand { transform: translateY(-5px); }
 .card {
   position: absolute; top: 0; left: calc(var(--step) * var(--i, 0));
   width: var(--card-w); height: var(--card-h);
   border-radius: calc(var(--card-w) * .2);
-  background: var(--card-face); overflow: hidden;
-  transition: filter calc(120ms * var(--speed));
+  transition: filter calc(220ms * var(--speed)), transform calc(340ms * var(--speed)) var(--spring);
 }
 .card + .card { box-shadow: -10px 0 18px -8px var(--shadow-card); }
+.hand.stacked .card { transform: translateX(calc(var(--step) * var(--i, 0) * -1)); }
+.card-flip { position: absolute; inset: 0; border-radius: inherit; transform-style: preserve-3d; }
+.card.down .card-flip { transform: rotateY(-180deg); }
+.card .face {
+  position: absolute; inset: 0; border-radius: inherit; background: var(--card-face); overflow: hidden;
+  -webkit-backface-visibility: hidden; backface-visibility: hidden;
+}
+.card .face.back { transform: rotateY(180deg); }
+.card.hot { transform: translateY(-8px); filter: drop-shadow(0 6px 14px var(--hot-glow)); }
+.hand-row.tied { position: relative; z-index: 5; }
+.hand-row.tied .card:not(.dim) { filter: drop-shadow(0 0 12px var(--glow-gold)); }
+/* monster hands: a gold band sweeps across the cards */
+.shimmer {
+  position: absolute; top: -10%; bottom: -10%; left: 0; width: 55%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--shimmer), transparent);
+  transform: translateX(-130%); opacity: 0;
+}
 .card .r {
   position: absolute; left: calc(var(--card-w) * .14); top: calc(var(--card-h) * .13);
   font-size: calc(var(--card-w) * .40); line-height: 1; font-weight: 400; color: var(--card-ink); letter-spacing: -.04em;
@@ -475,7 +593,7 @@ body:has(#sheet-svara.open) .svara-banner { opacity: 0; }
 .card.red .r, .card.red .s { color: var(--card-red); }
 /* joker mark: inside the strip that stays visible when the next card covers this one */
 .card .jk { position: absolute; left: calc(var(--card-w) * .2); top: 50%; transform: translateY(-50%); font-size: clamp(12px, calc(var(--card-w) * .13), 15px); line-height: 1; color: var(--win-gold); }
-.card.back::after { inset: calc(var(--card-w) * .075); }
+.card .face.back::after { inset: calc(var(--card-w) * .075); }
 
 .info {
   position: relative; flex: 1; min-width: 0; height: var(--card-h);
@@ -483,13 +601,24 @@ body:has(#sheet-svara.open) .svara-banner { opacity: 0; }
   transition: background-color calc(100ms * var(--speed)), border-color calc(100ms * var(--speed));
   text-align: center;
 }
+/* no press transform here: a tap flips the box (script), and a running transition would win over it */
 .table.turn .info { background: var(--surface); border-color: var(--surface); transition-duration: calc(150ms * var(--speed)); }
+/* your turn: a soft glow around the box that breathes twice, then stays */
+.info::after {
+  content: ""; position: absolute; inset: -3px; border-radius: calc(clamp(20px, 5.4vw, 24px) + 3px); pointer-events: none;
+  box-shadow: 0 0 0 1px var(--turn-ring), 0 0 26px 2px var(--turn-glow);
+  opacity: 0; transition: opacity calc(250ms * var(--speed));
+}
+.table.turn .info::after { opacity: 1; animation: breathe calc(1300ms * var(--speed)) ease-in-out 2; }
+@keyframes breathe { 50% { opacity: .4; } }
 .info-clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; display: block; }
 .info-track {
   display: block; height: 200%;
   transition: transform calc(250ms * var(--speed)) cubic-bezier(.3, 1.25, .5, 1);
 }
 .info.page-b .info-track { transform: translateY(-50%); }
+/* the box flips over (script); the page swaps instantly while it is edge-on */
+.info.flipping .info-track { transition: transform 0s linear calc(150ms * var(--speed)); }
 .info-page {
   height: 50%; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
   padding: calc(var(--card-h) * .1) 6px calc(var(--card-h) * .11);
@@ -506,13 +635,41 @@ body:has(#sheet-svara.open) .svara-banner { opacity: 0; }
 .info:not(.page-b) .dots i:first-child, .info.page-b .dots i:last-child { background: var(--card-face); }
 
 /* ------------------------------------------------------------------------------------------ */
-/* Flights (deal, sweep, payout) live in a fixed overlay in viewport coordinates               */
+/* Flights (deal, chips, sweep, rings, floating text) live in a fixed overlay in viewport      */
+/* coordinates and move by transform/opacity only. Particles go to one canvas above it.        */
 /* ------------------------------------------------------------------------------------------ */
 .fx { position: fixed; inset: 0; z-index: 15; pointer-events: none; overflow: hidden; }
-.fly { position: fixed; left: 0; top: 0; margin: 0; will-change: transform, opacity; }
-.fly-card { background: var(--card-face); border-radius: 12%/9%; overflow: hidden; transform-origin: 0 0; }
-.fly-card::after { inset: 10%; }
-.fly-chip { display: inline-flex; transform-origin: 50% 50%; }
+.fly { position: fixed; left: 0; top: 0; margin: 0; transform-origin: 50% 50%; will-change: transform, opacity; }
+.fly-shadow {
+  position: absolute; inset: -8% -14% -22%; opacity: 0;
+  background: radial-gradient(closest-side, var(--fly-shadow), transparent);
+}
+.fly-face { position: absolute; inset: 0; border-radius: inherit; background: var(--card-face); overflow: hidden; }
+.fly-face.back::after { inset: 7.3% 10%; } /* the deck's back */
+.fly-card.big .fly-face.back::after { inset: 5.5% 7.5%; } /* the back of your cards */
+.fly-chip { display: inline-flex; }
+.chip {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle, var(--chip) 0 30%, var(--chip-edge) 32% 44%, var(--chip) 46%);
+  box-shadow: 0 1.5px 0 var(--chip-edge), 0 2px 5px var(--chip-shadow);
+}
+.burst { border: 2px solid var(--win-gold); border-radius: 50%; }
+.burst.ring-bet { border: 1.5px solid var(--bet-ink); border-radius: 999px; }
+.burst.shock { border-width: 3px; box-shadow: 0 0 16px var(--glow-gold), inset 0 0 12px var(--glow-gold); }
+.float { white-space: nowrap; font-size: 15px; font-weight: 600; line-height: 1; color: var(--gain); }
+.float.big { font-size: clamp(24px, 7vw, 30px); font-weight: 300; color: var(--win-gold); }
+.morph > i { position: absolute; inset: 0; }
+.fx-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 16; pointer-events: none; }
+
+/* svara: a vignette dims everything but the middle and the tied players; one soft flash */
+.vignette, .flash { position: absolute; top: 0; bottom: 0; left: calc(-1 * var(--padL)); right: calc(-1 * var(--padR)); pointer-events: none; opacity: 0; }
+.vignette {
+  z-index: 4;
+  background: radial-gradient(130% 80% at 50% 47%, transparent 20%, var(--vignette) 70%);
+  transition: opacity calc(320ms * var(--speed)) ease-out;
+}
+.table.svara-dim .vignette { opacity: 1; }
+.flash { z-index: 6; background: radial-gradient(75% 45% at 50% 47%, var(--flash), transparent 72%); }
 
 /* ------------------------------------------------------------------------------------------ */
 /* Sheets                                                                                      */
@@ -559,7 +716,7 @@ input[type="range"]:focus-visible { outline-offset: 4px; border-radius: 16px; }
 .preset {
   height: 36px; border-radius: 18px; border: 2px solid var(--line-2);
   font-size: 15px; color: var(--text); white-space: nowrap; padding: 0 4px;
-  transition: background-color calc(120ms * var(--speed));
+  transition: background-color calc(120ms * var(--speed)), transform var(--press-out) var(--spring);
 }
 .preset.on { background: var(--surface-2); border-color: var(--surface-2); }
 .preset:disabled { opacity: .35; }
@@ -588,6 +745,14 @@ input[type="range"]:focus-visible { outline-offset: 4px; border-radius: 16px; }
   .sheet-icon { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
+  /* no movement: presses, lifts, tilts, spins and pulses are off; what remains are short fades */
+  .icon-btn:active, .help:active, .nav-btn:active, .btn-free:active, .preset:active:not(:disabled),
+  .btn-primary:active:not(:disabled), .btn-secondary:active:not(:disabled), .act:not(:disabled):active,
+  .table.turn .hand, .card.hot, .mini.hot, .hand.stacked .card { transform: none; }
+  .mode, .modes.scrolling .mode { --tilt: 0deg; --press: 1; transition: none; }
+  .card, .mini { transition: filter 120ms; }
+  .table.turn .info::after, .seat.allin .seat-avatar::after, .info.allin .info-avatar::after { animation: none; }
+  .vignette { transition-duration: 120ms; }
   .info-track { transition: none; }
   .seat.thinking .seat-marker::before { animation: none; }
   .sheet, .sheet.open { transform: none; opacity: 0; transition: opacity 120ms; }

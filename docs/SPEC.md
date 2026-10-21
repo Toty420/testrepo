@@ -276,11 +276,28 @@ scroll. It must fit 375×667 up to 440×956 without page scrolling on the table 
 - **XP**: +1 per hand played, +5 per pot won.
 
 ### Animations (respect `prefers-reduced-motion`)
-- Deal: cards fly from the deck to each seat; your cards flip face up.
-- Bets: the bubble pops under the seat; at round end the chips slide to the pot and the pot counts up.
-- Showdown: mini cards flip, losers dim, the winning cards and seat are highlighted, the pot flies to the
-  winner, and the stack counts up.
-- Svara: the banner scales in with a small shake.
+Transform and opacity only, through the Web Animations API, plus one canvas overlay for particles. The
+canvas runs no frame loop while idle. Every duration scales with `__svaraDebug.setSpeed`. With reduced
+motion there is no shake, flash, arc, spin, particle or floating text, only short fades.
+- **Hand start:** the deck riffle-shuffles (~450 ms) while the antes are tossed in as chips.
+- **Deal:** cards fly round-robin from left of the dealer along arcs, spinning down to 0°, and the deck kicks
+  as each one leaves. Your cards land as a pile, turn over in one 3D flip and fan out on a spring.
+- **Turn:** a ring sweeps around the thinking bot's avatar over its think time. On your turn your cards
+  lift, the buttons shine once, the info box glows and the phone vibrates (where supported).
+- **Bets:** 1–3 chips arc from the avatar to the bet spot and the bubble springs in; a raise pulses with a
+  ring. An all-in gets a gold ring with a coral echo, a slammed-in label (bots) and a small table shake.
+- **Round end:** the bubbles arc into the pot one by one, and the pot bumps, glows and counts up.
+- **Showdown:** mini cards 3D-flip seat by seat. The counting cards lift and glow, the rest grey out, and
+  the hand pill drops in. Three 7s and three aces get a gold shimmer and sparks.
+- **Payout:** the pot streams to the winner as 6–12 chips. The avatar bounces in gold rings, the stack
+  counts up in green and "+N" rises from the bet spot. When you win: gold confetti and "Печелиш +N".
+- **Svara:** the table dims around the middle and the tied players glow. СВАРА! slams down with a flash,
+  shockwave rings and a shake. Then every card flies back into the deck, the deck reshuffles, and the new
+  deal starts.
+- **Screens:** the AI Арена card morphs into the stakes panel and back. Seats drop in when a game starts,
+  and the table shrinks away on leaving. Buttons dip on press and spring back, the mode cards tilt while
+  scrolling, and the info box flips between its pages.
+- **Budgets at speed 1:** deal ≤ 1.2 s, showdown + payout ≤ 2.5 s, svara ≤ 3 s.
 
 ### Bot pool (Bulgarian names + emoji)
 Ива 🐭, Митко 😆, Гошо 🐼, Пешо 🧔, Сашо 😎, Нели 👩, Бобо 🐻, Тони 🦊, Деси 🐱, Краси 🤠,
